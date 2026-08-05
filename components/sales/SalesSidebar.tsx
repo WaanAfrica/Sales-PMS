@@ -71,9 +71,9 @@ export default function SalesSidebar({
           </nav>
           <div className="mt-auto space-y-3 rounded-3xl bg-slate-900 p-5 text-sm text-slate-100">
             <div className="flex items-center gap-3 rounded-2xl bg-slate-800 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500">{userName.charAt(0).toUpperCase()}</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500">C</div>
               <div>
-                <p className="font-semibold text-white">{userName}</p>
+                <p className="font-semibold text-white">Collins</p>
                 <p className="text-xs text-slate-400">Salesperson</p>
               </div>
             </div>
@@ -89,8 +89,8 @@ export default function SalesSidebar({
         </div>
       </aside>
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[280px] overflow-hidden bg-[#0f172a] p-6 text-slate-100 md:flex">
-        <div className="flex h-full w-full flex-col justify-between rounded-2xl border border-slate-800 bg-[#0f172a] p-5 shadow-sm text-slate-100">
+      <aside className={`hidden md:flex shrink-0 flex-col rounded-[32px] border border-slate-800 bg-[#0f172a] p-6 text-slate-100 shadow-sm ${collapsed ? 'md:w-20 lg:w-[280px]' : 'md:w-[280px]'}`}>
+        <div className="sticky top-6 flex h-[calc(100vh-48px)] flex-col justify-between rounded-[32px] border border-slate-800 bg-[#0f172a] p-6 shadow-sm text-slate-100">
           <div className="space-y-8">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500 text-white">S</div>
@@ -121,9 +121,9 @@ export default function SalesSidebar({
           </div>
           <div className="space-y-3 rounded-3xl bg-slate-900 p-5 text-sm">
             <div className="flex items-center gap-3 rounded-2xl bg-slate-800 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500">{userName.charAt(0).toUpperCase()}</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500">C</div>
               <div className={`${collapsed ? 'hidden' : 'block'}`}>
-                <p className="font-semibold text-white">{userName}</p>
+                <p className="font-semibold text-white">Collins</p>
                 <p className="text-xs text-slate-400">Salesperson</p>
               </div>
             </div>

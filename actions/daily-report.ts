@@ -116,16 +116,17 @@ export async function deleteDailyReport(id: string) {
 export async function assignTargets(input: { userId: string; month: number; year: number; salesRevenueTarget: number; repeatCustomerTarget: number; newCustomerTarget: number; walkInTarget: number; quotationTarget: number; pipelineTarget: number }) {
   await requireRole('ADMIN');
   const existing = await prisma.monthlyTarget.findFirst({ where: { userId: input.userId, month: input.month, year: input.year } });
-  if (existing) {
-    return prisma.monthlyTarget.update({ where: { id: existing.id }, data: input });
-  }
-  return prisma.monthlyTarget.create({ data: input });
+  const result = existing
+    ? await prisma.monthlyTarget.update({ where: { id: existing.id }, data: input })
+    : await prisma.monthlyTarget.create({ data: input });
+  revalidatePath('/admin');
+  return result;
 }
 
 export async function createUser(input: { name: string; email: string; password: string; role: 'ADMIN' | 'SALES'; active?: boolean }) {
   await requireRole('ADMIN');
   const hashed = await bcrypt.hash(input.password, 10);
-  return prisma.user.create({
+  const result = await prisma.user.create({
     data: {
       name: input.name,
       email: input.email,
@@ -134,6 +135,8 @@ export async function createUser(input: { name: string; email: string; password:
       active: input.active ?? true,
     },
   });
+  revalidatePath('/admin');
+  return result;
 }
 
 export async function updateUser(id: string, input: { name?: string; email?: string; password?: string; role?: 'ADMIN' | 'SALES'; active?: boolean }) {
@@ -144,10 +147,14 @@ export async function updateUser(id: string, input: { name?: string; email?: str
   if (input.password) data.password = await bcrypt.hash(input.password, 10);
   if (input.role) data.role = input.role;
   if (typeof input.active === 'boolean') data.active = input.active;
-  return prisma.user.update({ where: { id }, data });
+  const result = await prisma.user.update({ where: { id }, data });
+  revalidatePath('/admin');
+  return result;
 }
 
 export async function deactivateUser(id: string) {
   await requireRole('ADMIN');
-  return prisma.user.update({ where: { id }, data: { active: false } });
+  const result = await prisma.user.update({ where: { id }, data: { active: false } });
+  revalidatePath('/admin');
+  return result;
 }

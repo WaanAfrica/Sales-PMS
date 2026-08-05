@@ -1,8 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Bell, Menu, Plus, Search, UserCircle2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { Bell, Menu, Search, UserCircle2 } from 'lucide-react';
 import SalesSidebar from './SalesSidebar';
 import SalesStatCards from './SalesStatCards';
 import SalesTrendChart from './SalesTrendChart';
@@ -10,16 +9,20 @@ import SalesDailyReportForm from './SalesDailyReportForm';
 
 type SalesReportItem = {
   id: string;
-  date: string | Date;
+  date: string;
   salesRevenue: number;
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
   newQuotations: number;
   closedQuotations: number;
+  quotationAge: number;
+  hotQuotationValue: number;
   salesPipelineValue: number;
   accountsReceivable: number;
-  status?: string;
+  opportunities: string | null;
+  challenges: string | null;
+  status: string;
 };
 
 type SalesShellProps = {
@@ -33,15 +36,20 @@ type SalesShellProps = {
     customers: number;
     quotations: number;
     pipeline: number;
+    receivables: number;
   };
   monthlySummary: {
     revenue: number;
     customers: number;
     quotations: number;
     pipeline: number;
+    receivables: number;
   };
   recentReports: SalesReportItem[];
-  revenueTrend: Array<{ label: string; revenue: number }>;
+  revenueTrend: Array<{ label: string; value: number }>;
+  pipelineTrend: Array<{ label: string; value: number }>;
+  monthlyWinRate: number;
+  customerGrowthPercent: number;
   todaysReport?: SalesReportItem;
 };
 
@@ -59,6 +67,9 @@ export default function SalesShell({
   monthlySummary,
   recentReports,
   revenueTrend,
+  pipelineTrend,
+  monthlyWinRate,
+  customerGrowthPercent,
   todaysReport,
 }: SalesShellProps) {
   const [activeSection, setActiveSection] = useState<Section>('Dashboard');
@@ -93,24 +104,37 @@ export default function SalesShell({
                   subtitle: 'Daily revenue',
                 },
                 {
-                  title: 'Monthly target',
-                  value: formattedTarget,
-                  subtitle: 'Goal for the month',
+                  title: 'Monthly revenue',
+                  value: monthlySummary.revenue.toLocaleString('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }),
+                  subtitle: 'Revenue this month',
                 },
                 {
-                  title: 'Achievement',
+                  title: 'Target progress',
                   value: `${achievementPercent}%`,
-                  subtitle: 'Target completion',
+                  subtitle: 'Monthly goal achieved',
+                },
+                {
+                  title: 'Customers',
+                  value: monthlySummary.customers.toLocaleString(),
+                  subtitle: 'Customers this month',
                 },
                 {
                   title: 'Pipeline',
                   value: formattedPipeline,
-                  subtitle: 'Open sales value',
+                  subtitle: 'Open pipeline value',
+                },
+                {
+                  title: 'Receivables',
+                  value: monthlySummary.receivables.toLocaleString('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }),
+                  subtitle: 'Outstanding receivables',
                 },
               ]}
             />
 
-            <SalesTrendChart data={revenueTrend} />
+            <div className="grid gap-6 xl:grid-cols-2">
+              <SalesTrendChart data={revenueTrend} title="Revenue trend" subtitle="Monthly revenue" />
+              <SalesTrendChart data={pipelineTrend} title="Pipeline trend" subtitle="Monthly pipeline" />
+            </div>
 
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4">
@@ -159,7 +183,7 @@ export default function SalesShell({
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">{report.status}</span>
-                      <button type="button" onClick={() => { setActiveSection('My Reports'); toast.info('Opening report history.'); }} className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">View</button>
+                      <button className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">View</button>
                     </div>
                   </div>
                 ))}
@@ -207,7 +231,7 @@ export default function SalesShell({
                         <td className="px-4 py-4 text-slate-700">{report.repeatCustomers + report.newCustomers + report.walkIns}</td>
                         <td className="px-4 py-4 text-slate-700">{report.status}</td>
                         <td className="px-4 py-4">
-                          <button type="button" onClick={() => toast.info(`Viewing report from ${new Date(report.date).toLocaleDateString()}`)} className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">View</button>
+                          <button className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">View</button>
                         </td>
                       </tr>
                     ))}
@@ -224,7 +248,7 @@ export default function SalesShell({
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Monthly revenue</p>
-                  <p className="mt-3 text-4xl font-semibold text-slate-900">{formattedTarget}</p>
+                  <p className="mt-3 text-4xl font-semibold text-slate-900">{monthlySummary.revenue.toLocaleString('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 })}</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Target progress</p>
@@ -235,34 +259,27 @@ export default function SalesShell({
                 </div>
               </div>
             </section>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-3">
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Customers</p>
-                <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-3xl bg-slate-50 p-4 text-center">
-                    <p className="text-sm text-slate-500">Repeat</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{monthlySummary.customers}</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-50 p-4 text-center">
-                    <p className="text-sm text-slate-500">New</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{monthlySummary.customers}</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-50 p-4 text-center">
-                    <p className="text-sm text-slate-500">Walk-ins</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{monthlySummary.pipeline}</p>
-                  </div>
-                </div>
+                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Customer growth</p>
+                <p className="mt-3 text-3xl font-semibold text-slate-900">{customerGrowthPercent}%</p>
+                <p className="mt-2 text-sm text-slate-500">Compared to last month</p>
               </section>
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Pipeline</p>
-                <p className="mt-3 text-3xl font-semibold text-slate-900">KES {monthlySummary.pipeline.toLocaleString()}</p>
-                <div className="mt-6 rounded-3xl bg-slate-50 p-5">
-                  <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Win rate</p>
-                  <p className="mt-3 text-3xl font-semibold text-slate-900">{Math.round((monthlySummary.quotations ? monthlySummary.quotations : 1) / 100)}%</p>
-                </div>
+                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Win rate</p>
+                <p className="mt-3 text-3xl font-semibold text-slate-900">{monthlyWinRate}%</p>
+                <p className="mt-2 text-sm text-slate-500">Quotation close ratio</p>
+              </section>
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">Receivables</p>
+                <p className="mt-3 text-3xl font-semibold text-slate-900">{monthlySummary.receivables.toLocaleString('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 })}</p>
+                <p className="mt-2 text-sm text-slate-500">Outstanding balance</p>
               </section>
             </div>
-            <SalesTrendChart data={revenueTrend} />
+            <div className="grid gap-6 xl:grid-cols-2">
+              <SalesTrendChart data={revenueTrend} title="Revenue trend" subtitle="This month" />
+              <SalesTrendChart data={pipelineTrend} title="Pipeline trend" subtitle="This month" />
+            </div>
           </div>
         );
       case 'Profile':
@@ -290,8 +307,8 @@ export default function SalesShell({
                     <p className="text-sm text-slate-500">Role</p>
                     <p className="mt-2 text-slate-900">Sales</p>
                   </div>
-                  <button type="button" onClick={() => toast.info('Profile editing will be available with the user API.')} className="rounded-3xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">Update Profile</button>
-                  <button type="button" onClick={() => toast.info('Password changes are managed through account settings.')} className="rounded-3xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100">Change Password</button>
+                  <button className="rounded-3xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">Update Profile</button>
+                  <button className="rounded-3xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100">Change Password</button>
                 </div>
               </div>
             </section>
@@ -303,8 +320,8 @@ export default function SalesShell({
   }, [activeSection, formattedTarget, formattedTodayRevenue, formattedPipeline, todayReported, todaySummary, monthlySummary, recentReports, revenueTrend, achievementPercent, todaysReport, userName]);
 
   return (
-    <div className="relative h-screen overflow-hidden bg-[#F8FAFC]">
-      <div>
+    <div className="relative min-h-screen bg-[#F8FAFC]">
+      <div className="md:grid md:grid-cols-[auto_1fr] md:gap-8">
         <SalesSidebar
           userName={userName}
           activeSection={activeSection}
@@ -314,8 +331,8 @@ export default function SalesShell({
           onCollapseToggle={() => setSidebarCollapsed((prev) => !prev)}
           onClose={() => setSidebarOpen(false)}
         />
-        <main className="h-screen overflow-y-auto pt-[72px] md:pl-[280px]">
-          <div className="fixed inset-x-0 top-0 z-30 h-[72px] border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm md:left-[280px]">
+        <main className="min-h-screen pt-[72px]">
+          <div className="fixed inset-x-0 top-0 z-30 h-[72px] border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm">
             <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-8">
               <div className="flex items-center gap-3">
                 <button
@@ -327,8 +344,8 @@ export default function SalesShell({
                   <Menu className="h-5 w-5" />
                 </button>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Sales workspace</p>
-                  <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">{activeSection}</h1>
+                  <p className="text-sm font-semibold uppercase tracking-[0.32em] text-blue-600">Sales</p>
+                  <h1 className="text-3xl font-semibold text-slate-950">Sales dashboard</h1>
                 </div>
               </div>
               <div className="flex flex-1 items-center justify-end gap-3">
@@ -341,12 +358,11 @@ export default function SalesShell({
                   />
                 </div>
                 <div className="flex items-center gap-3">
-                  {activeSection === 'Dashboard' && <button type="button" onClick={() => setActiveSection('Daily Report')} className="hidden h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 lg:inline-flex"><Plus className="h-4 w-4" />New report</button>}
-                  <button type="button" onClick={() => toast.info('You have 3 unread notifications.')} className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100">
+                  <button className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100">
                     <Bell className="h-5 w-5" />
                     <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">3</span>
                   </button>
-                  <button type="button" onClick={() => setActiveSection('Profile')} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100">
+                  <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100">
                     <UserCircle2 className="h-5 w-5 text-blue-600" />
                     <span className="hidden sm:inline">{userName}</span>
                   </button>
