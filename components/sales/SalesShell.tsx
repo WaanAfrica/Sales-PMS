@@ -515,7 +515,7 @@ export default function SalesShell({
                     Sales
                   </p>
                   <h1 className="text-3xl font-semibold text-slate-950">
-                    Sales dashboard
+                    {activeSection}
                   </h1>
                 </div>
               </div>

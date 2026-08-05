@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef } from "react";
 import { signOut } from "next-auth/react";
 import {
   BarChart3,
@@ -46,13 +47,29 @@ export default function SalesSidebar({
   onCollapseToggle?: () => void;
   onClose?: () => void;
 }) {
+  const sidebarRef = useRef<HTMLElement | null>(null);
+
+  const closeSidebar = useCallback(() => {
+    if (
+      typeof document !== "undefined" &&
+      document.activeElement instanceof HTMLElement &&
+      sidebarRef.current?.contains(document.activeElement)
+    ) {
+      document.activeElement.blur();
+    }
+    onClose?.();
+  }, [onClose]);
+
   return (
     <>
       <aside
+        ref={sidebarRef}
         className={`fixed inset-0 z-40 md:hidden ${open ? "block" : "hidden"}`}
-        aria-hidden={!open}
       >
-        <div className="absolute inset-0 bg-slate-950/60" onClick={onClose} />
+        <div
+          className="absolute inset-0 bg-slate-950/60"
+          onClick={closeSidebar}
+        />
         <div className="absolute left-0 top-0 flex h-full w-[280px] flex-col rounded-r-3xl border-r border-slate-800 bg-[#0f172a] p-6 shadow-2xl">
           <div className="flex items-center justify-between gap-3 pb-4">
             <div className="flex items-center gap-3">
@@ -68,7 +85,7 @@ export default function SalesSidebar({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeSidebar}
               className="rounded-2xl border border-slate-700 bg-slate-900 p-2 text-slate-300 hover:bg-slate-800"
             >
               <X className="h-4 w-4" />
@@ -123,9 +140,9 @@ export default function SalesSidebar({
       </aside>
 
       <aside
-        className={`hidden md:flex shrink-0 flex-col rounded-[32px] border border-slate-800 bg-[#0f172a] p-6 text-slate-100 shadow-sm ${collapsed ? "md:w-20 lg:w-[280px]" : "md:w-[280px]"}`}
+        className={`hidden md:flex shrink-0 flex-col rounded-[28px] border border-slate-800 bg-[#0f172a] p-6 text-slate-100 shadow-sm ${collapsed ? "md:w-20 lg:w-[280px]" : "md:w-[280px]"}`}
       >
-        <div className="sticky top-6 flex h-[calc(100vh-48px)] flex-col justify-between rounded-[32px] border border-slate-800 bg-[#0f172a] p-6 shadow-sm text-slate-100">
+        <div className="sticky top-6 flex h-[calc(100vh-48px)] flex-col justify-between rounded-[28px] border border-slate-800 bg-[#0f172a] p-6 shadow-sm text-slate-100">
           <div className="space-y-8">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500 text-white">
@@ -135,7 +152,7 @@ export default function SalesSidebar({
                 <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
                   Sales PMS
                 </p>
-                <p className="text-lg font-semibold text-white">Workspace</p>
+                <p className="text-lg font-semibold text-white">Sales panel</p>
               </div>
             </div>
             <nav className="space-y-2">
@@ -166,7 +183,7 @@ export default function SalesSidebar({
                 C
               </div>
               <div className={`${collapsed ? "hidden" : "block"}`}>
-                <p className="font-semibold text-white">Collins</p>
+                <p className="font-semibold text-white">{userName}</p>
                 <p className="text-xs text-slate-400">Salesperson</p>
               </div>
             </div>

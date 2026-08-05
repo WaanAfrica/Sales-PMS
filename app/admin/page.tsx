@@ -11,46 +11,72 @@ function formatKES(value: number) {
 }
 
 export default async function AdminPage() {
-  const session = await requireRole("ADMIN");
+  await requireRole("ADMIN");
 
   const users = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const reports = await prisma.dailySales.findMany({
-    where: { date: { gte: monthStart } },
-    orderBy: { date: "desc" },
-    include: { user: true },
-  });
-  const targets = await prisma.monthlyTarget.findMany({
-    where: {
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
-    },
-    include: { user: true },
-  });
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousMonthEnd = monthStart;
 
-  const totalRevenue = reports.reduce(
+  const [reports, monthlyReports, targets, previousMonthReports] =
+    await Promise.all([
+      prisma.dailySales.findMany({
+        orderBy: { date: "desc" },
+        take: 20,
+        include: { user: true },
+      }),
+      prisma.dailySales.findMany({
+        where: {
+          date: {
+            gte: monthStart,
+            lt: nextMonthStart,
+          },
+        },
+        orderBy: { date: "desc" },
+        include: { user: true },
+      }),
+      prisma.monthlyTarget.findMany({
+        where: {
+          month: now.getMonth() + 1,
+          year: now.getFullYear(),
+        },
+        include: { user: true },
+      }),
+      prisma.dailySales.findMany({
+        where: {
+          date: {
+            gte: previousMonthStart,
+            lt: previousMonthEnd,
+          },
+        },
+        include: { user: true },
+      }),
+    ]);
+
+  const totalRevenue = monthlyReports.reduce(
     (sum, item) => sum + item.salesRevenue,
     0,
   );
-  const totalPipeline = reports.reduce(
+  const totalPipeline = monthlyReports.reduce(
     (sum, item) => sum + item.salesPipelineValue,
     0,
   );
-  const totalReceivables = reports.reduce(
+  const totalReceivables = monthlyReports.reduce(
     (sum, item) => sum + item.accountsReceivable,
     0,
   );
-  const totalCustomers = reports.reduce(
+  const totalCustomers = monthlyReports.reduce(
     (sum, item) =>
       sum + item.repeatCustomers + item.newCustomers + item.walkIns,
     0,
   );
-  const totalQuotes = reports.reduce(
+  const totalQuotes = monthlyReports.reduce(
     (sum, item) => sum + item.newQuotations,
     0,
   );
-  const closedQuotes = reports.reduce(
+  const closedQuotes = monthlyReports.reduce(
     (sum, item) => sum + item.closedQuotations,
     0,
   );
@@ -58,37 +84,135 @@ export default async function AdminPage() {
     ? Math.round((closedQuotes / totalQuotes) * 100)
     : 0;
 
-  const dailyRevenueTrend = Object.values(reports.reduce<Record<string, { label: string; revenue: number; date: Date }>>((acc, report) => {
-    const key = report.date.toISOString().slice(0, 10);
-    acc[key] ??= { label: report.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), revenue: 0, date: report.date };
-    acc[key].revenue += report.salesRevenue;
-    return acc;
-  }, {})).sort((a, b) => a.date.getTime() - b.date.getTime()).map(({ label, revenue }) => ({ label, revenue }));
-  const revenueByUser = reports.reduce<Record<string, number>>((acc, report) => {
-    acc[report.userId] = (acc[report.userId] ?? 0) + report.salesRevenue;
-    return acc;
-  }, {});
-  const salesByPersonnel = users.filter((user) => user.active).map((user) => ({ name: user.name, revenue: revenueByUser[user.id] ?? 0 })).sort((a, b) => b.revenue - a.revenue);
-  const targetAchievement = targets.map((target) => ({ name: target.user.name, achievement: target.salesRevenueTarget ? Math.round(((revenueByUser[target.userId] ?? 0) / target.salesRevenueTarget) * 100) : 0 })).sort((a, b) => b.achievement - a.achievement);
+  const salesByPersonnel = monthlyReports
+    .reduce(
+      (acc, item) => {
+        const existing = acc.find((person) => person.name === item.user.name);
+        if (existing) {
+          existing.revenue += item.salesRevenue;
+        } else {
+          acc.push({ name: item.user.name, revenue: item.salesRevenue });
+        }
+        return acc;
+      },
+      [] as Array<{ name: string; revenue: number }>,
+    )
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const targetAchievement = targets.map((target) => {
+    const revenue =
+      salesByPersonnel.find((person) => person.name === target.user.name)
+        ?.revenue ?? 0;
+    return {
+      name: target.user.name,
+      achievement: target.salesRevenueTarget
+        ? Math.round((revenue / target.salesRevenueTarget) * 100)
+        : 0,
+    };
+  });
+
+  const revenueByDate = new Map<string, number>();
+  [...monthlyReports].reverse().forEach((report) => {
+    const dateKey =
+      report.date instanceof Date
+        ? report.date.toISOString().slice(0, 10)
+        : new Date(report.date).toISOString().slice(0, 10);
+    revenueByDate.set(
+      dateKey,
+      (revenueByDate.get(dateKey) ?? 0) + report.salesRevenue,
+    );
+  });
+
+  const dailyRevenueTrend = Array.from(revenueByDate.entries())
+    .slice(-7)
+    .map(([iso, revenue]) => ({
+      label: new Date(iso).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+      }),
+      revenue,
+    }));
+
+  const previousRevenue = previousMonthReports.reduce(
+    (sum, item) => sum + item.salesRevenue,
+    0,
+  );
+  const previousCustomers = previousMonthReports.reduce(
+    (sum, item) =>
+      sum + item.repeatCustomers + item.newCustomers + item.walkIns,
+    0,
+  );
+  const previousPipeline = previousMonthReports.reduce(
+    (sum, item) => sum + item.salesPipelineValue,
+    0,
+  );
+  const previousReceivables = previousMonthReports.reduce(
+    (sum, item) => sum + item.accountsReceivable,
+    0,
+  );
+
+  const revenueTrendPercent = previousRevenue
+    ? Math.round(((totalRevenue - previousRevenue) / previousRevenue) * 100)
+    : 0;
+  const customerTrendPercent = previousCustomers
+    ? Math.round(
+        ((totalCustomers - previousCustomers) / previousCustomers) * 100,
+      )
+    : 0;
+  const pipelineTrendPercent = previousPipeline
+    ? Math.round(((totalPipeline - previousPipeline) / previousPipeline) * 100)
+    : 0;
+  const receivableTrendPercent = previousReceivables
+    ? Math.round(
+        ((totalReceivables - previousReceivables) / previousReceivables) * 100,
+      )
+    : 0;
+
+  const averageTargetAchievement = targetAchievement.length
+    ? Math.round(
+        targetAchievement.reduce((sum, item) => sum + item.achievement, 0) /
+          targetAchievement.length,
+      )
+    : 0;
 
   const summaryCards = [
     {
-      title: "Total revenue",
+      title: "Company revenue",
       value: formatKES(totalRevenue),
       subtitle: "Month-to-date total sales",
+      trend: previousRevenue
+        ? `${revenueTrendPercent > 0 ? "+" : ""}${revenueTrendPercent}%`
+        : "New",
+    },
+    {
+      title: "Monthly target achievement",
+      value: `${averageTargetAchievement}%`,
+      subtitle: "Average team progress",
       trend: "Current month",
+    },
+    {
+      title: "Total customers",
+      value: totalCustomers.toLocaleString(),
+      subtitle: "Customers served this month",
+      trend: previousCustomers
+        ? `${customerTrendPercent > 0 ? "+" : ""}${customerTrendPercent}%`
+        : "New",
     },
     {
       title: "Pipeline value",
       value: formatKES(totalPipeline),
       subtitle: "Current sales pipeline",
-      trend: "Current month",
+      trend: previousPipeline
+        ? `${pipelineTrendPercent > 0 ? "+" : ""}${pipelineTrendPercent}%`
+        : "New",
     },
     {
-      title: "Target achievement",
-      value: `${targets.length ? Math.round(targetAchievement.reduce((sum, item) => sum + item.achievement, 0) / targets.length) : 0}%`,
-      subtitle: "Team average progress",
-      trend: "Current month",
+      title: "Accounts receivable",
+      value: formatKES(totalReceivables),
+      subtitle: "Outstanding customer balance",
+      trend: previousReceivables
+        ? `${receivableTrendPercent > 0 ? "+" : ""}${receivableTrendPercent}%`
+        : "New",
     },
     {
       title: "Win rate",
@@ -96,43 +220,19 @@ export default async function AdminPage() {
       subtitle: "Quote close rate",
       trend: "Current month",
     },
-    {
-      title: "Customers",
-      value: totalCustomers.toLocaleString(),
-      subtitle: "Customers served",
-      trend: "Current month",
-    },
-    {
-      title: "Open quotations",
-      value: Math.max(totalQuotes - closedQuotes, 0).toLocaleString(),
-      subtitle: "Quotations in progress",
-      trend: "Current month",
-    },
-    {
-      title: "Accounts receivable",
-      value: formatKES(totalReceivables),
-      subtitle: "Outstanding balances",
-      trend: "Current month",
-    },
-    {
-      title: "Active salespeople",
-      value: `${users.filter((user) => user.active).length}/${users.length}`,
-      subtitle: "Active team members",
-      trend: "Current month",
-    },
   ];
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-[1440px]">
+    <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
+      <div className="mx-auto max-w-7xl">
         <AdminShell
-          adminUserId={session.user.id}
           summaryCards={summaryCards}
           dailyRevenueTrend={dailyRevenueTrend}
           salesByPersonnel={salesByPersonnel}
           targetAchievement={targetAchievement}
           users={users}
           reports={reports}
+          monthlyReports={monthlyReports}
           targets={targets}
         />
       </div>
