@@ -20,11 +20,15 @@ type DailyReport = {
 };
 
 export default async function DashboardPage() {
-  const session = await requireRole('SALES');
+  const session = await requireRole("SALES");
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const startOfPreviousMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() - 1,
+    1,
+  );
 
   const [allReports, monthlyTarget, previousReports] = await Promise.all([
     prisma.dailySales.findMany({
@@ -47,13 +51,16 @@ export default async function DashboardPage() {
           lt: startOfMonth,
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { date: "desc" },
     }),
   ]);
 
   const normalizedReports: DailyReport[] = allReports.map((report) => ({
     id: report.id,
-    date: report.date instanceof Date ? report.date.toISOString() : new Date(report.date).toISOString(),
+    date:
+      report.date instanceof Date
+        ? report.date.toISOString()
+        : new Date(report.date).toISOString(),
     salesRevenue: report.salesRevenue,
     repeatCustomers: report.repeatCustomers,
     newCustomers: report.newCustomers,
@@ -71,21 +78,30 @@ export default async function DashboardPage() {
   const todaysReport = normalizedReports
     .map((report) => ({
       ...report,
-      status: report.closedQuotations > 0 ? 'Submitted' : 'Pending',
+      status: report.closedQuotations > 0 ? "Submitted" : "Pending",
     }))
-    .find((report) => new Date(report.date).toDateString() === now.toDateString());
+    .find(
+      (report) => new Date(report.date).toDateString() === now.toDateString(),
+    );
 
-  const monthlyReports = normalizedReports.filter(
-    (report) => {
-      const date = new Date(report.date);
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    },
-  );
+  const monthlyReports = normalizedReports.filter((report) => {
+    const date = new Date(report.date);
+    return (
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    );
+  });
 
   const todaySummary = {
     revenue: todaysReport?.salesRevenue ?? 0,
-    customers: todaysReport ? todaysReport.repeatCustomers + todaysReport.newCustomers + todaysReport.walkIns : 0,
-    quotations: todaysReport ? todaysReport.newQuotations + todaysReport.closedQuotations : 0,
+    customers: todaysReport
+      ? todaysReport.repeatCustomers +
+        todaysReport.newCustomers +
+        todaysReport.walkIns
+      : 0,
+    quotations: todaysReport
+      ? todaysReport.newQuotations + todaysReport.closedQuotations
+      : 0,
     pipeline: todaysReport?.salesPipelineValue ?? 0,
     receivables: todaysReport?.accountsReceivable ?? 0,
   };
@@ -93,12 +109,22 @@ export default async function DashboardPage() {
   const monthlySummary = {
     revenue: monthlyReports.reduce((sum, item) => sum + item.salesRevenue, 0),
     customers: monthlyReports.reduce(
-      (sum, item) => sum + item.repeatCustomers + item.newCustomers + item.walkIns,
+      (sum, item) =>
+        sum + item.repeatCustomers + item.newCustomers + item.walkIns,
       0,
     ),
-    quotations: monthlyReports.reduce((sum, item) => sum + item.newQuotations + item.closedQuotations, 0),
-    pipeline: monthlyReports.reduce((sum, item) => sum + item.salesPipelineValue, 0),
-    receivables: monthlyReports.reduce((sum, item) => sum + item.accountsReceivable, 0),
+    quotations: monthlyReports.reduce(
+      (sum, item) => sum + item.newQuotations + item.closedQuotations,
+      0,
+    ),
+    pipeline: monthlyReports.reduce(
+      (sum, item) => sum + item.salesPipelineValue,
+      0,
+    ),
+    receivables: monthlyReports.reduce(
+      (sum, item) => sum + item.accountsReceivable,
+      0,
+    ),
   };
 
   const targetValue = monthlyTarget?.salesRevenueTarget ?? 0;
@@ -118,18 +144,26 @@ export default async function DashboardPage() {
     },
   });
   const previousCustomerCount = previousMonthReports.reduce(
-    (sum, item) => sum + item.repeatCustomers + item.newCustomers + item.walkIns,
+    (sum, item) =>
+      sum + item.repeatCustomers + item.newCustomers + item.walkIns,
     0,
   );
   const customerGrowthPercent = previousCustomerCount
-    ? Math.round(((monthlySummary.customers - previousCustomerCount) / previousCustomerCount) * 100)
+    ? Math.round(
+        ((monthlySummary.customers - previousCustomerCount) /
+          previousCustomerCount) *
+          100,
+      )
     : 0;
 
   const revenueTrend = monthlyReports
     .slice(0, 7)
     .reverse()
     .map((report) => ({
-      label: new Date(report.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      label: new Date(report.date).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+      }),
       value: report.salesRevenue,
     }));
 
@@ -137,13 +171,24 @@ export default async function DashboardPage() {
     .slice(0, 7)
     .reverse()
     .map((report) => ({
-      label: new Date(report.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      label: new Date(report.date).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+      }),
       value: report.salesPipelineValue,
     }));
 
-  const winRate = monthlyReports.reduce((sum, item) => sum + item.closedQuotations, 0);
-  const totalQuotations = monthlyReports.reduce((sum, item) => sum + item.newQuotations, 0);
-  const monthlyWinRate = totalQuotations ? Math.round((winRate / totalQuotations) * 100) : 0;
+  const winRate = monthlyReports.reduce(
+    (sum, item) => sum + item.closedQuotations,
+    0,
+  );
+  const totalQuotations = monthlyReports.reduce(
+    (sum, item) => sum + item.newQuotations,
+    0,
+  );
+  const monthlyWinRate = totalQuotations
+    ? Math.round((winRate / totalQuotations) * 100)
+    : 0;
 
   const recentReports = allReports.map((report) => ({
     id: report.id,
@@ -160,7 +205,7 @@ export default async function DashboardPage() {
     accountsReceivable: report.accountsReceivable,
     opportunities: report.opportunities,
     challenges: report.challenges,
-    status: report.closedQuotations > 0 ? 'Submitted' : 'Pending',
+    status: report.closedQuotations > 0 ? "Submitted" : "Pending",
   }));
 
   return (
