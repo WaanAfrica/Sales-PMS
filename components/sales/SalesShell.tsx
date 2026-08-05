@@ -499,7 +499,7 @@ export default function SalesShell({
           onClose={() => setSidebarOpen(false)}
         />
         <main className="min-h-screen pt-[72px]">
-          <div className="fixed inset-x-0 top-0 z-30 h-[72px] border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm">
+          <div className={`fixed inset-x-0 top-0 z-30 h-[72px] border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm ${sidebarCollapsed ? "md:left-[80px] md:w-[calc(100%-80px)]" : "md:left-[280px] md:w-[calc(100%-280px)]"}`}>
             <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-8">
               <div className="flex items-center gap-3">
                 <button
