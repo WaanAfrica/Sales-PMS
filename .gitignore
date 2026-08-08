@@ -6,3 +6,4 @@ pnpm-debug.log*
 *.tsbuildinfo
 .env
 .env.local
+build.log

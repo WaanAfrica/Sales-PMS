@@ -2,7 +2,9 @@
 
 import { Bell, Menu, Search, UserCircle2 } from "lucide-react";
 import { useCallback, useMemo, useState, useTransition } from "react";
+import { useEffect } from "react";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
 import { assignTargets, createUser } from "@/actions/daily-report";
 import DashboardOverview from "./DashboardOverview";
 import DashboardChart from "./DashboardChart";
@@ -133,6 +135,70 @@ export default function AdminShell({
   });
   const [actionMessage, setActionMessage] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [selectedDate, setSelectedDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [reportType, setReportType] = useState<
+    "Daily Report" | "Monthly Report"
+  >("Daily Report");
+  const [selectedMonth, setSelectedMonth] = useState(
+    () => new Date().getMonth() + 1,
+  );
+  const [selectedYear, setSelectedYear] = useState(() =>
+    new Date().getFullYear(),
+  );
+  const [reportSummary, setReportSummary] = useState<{
+    reportDate?: string;
+    month?: number;
+    year?: number;
+    activePersonnel: number;
+    submitted: number;
+    pending: number;
+    drafts: number;
+    rows: Array<{
+      userId: string;
+      name: string;
+      status: string;
+      revenueSummary: {
+        target: number;
+        actual: number;
+        varianceAmount: number;
+        variancePercentage: number | string;
+        previousDay?: number | string;
+        changeAgainstPreviousDay?: number | string;
+        achievement?: string | number;
+      };
+      customerSummary: {
+        repeat: number;
+        new: number;
+        walkIns: number;
+        monthlyAcquisition: number;
+      };
+      quotationSummary: {
+        new: number;
+        cumulative: number;
+        averageAge: number;
+        total?: number;
+      };
+      hotQuotationValue: number;
+      salesPipelineValue: number;
+      accountReceivable: number;
+      winRate: string | number;
+      opportunities: string;
+      challenges: string;
+    }>;
+    teamTotals: {
+      target: number;
+      actual: number;
+      varianceAmount: number;
+      variancePercentage: number | string;
+      customers: number;
+      quotations: number;
+      pipeline: number;
+      receivables: number;
+      winRate: string | number;
+    };
+  } | null>(null);
 
   const performanceRows = useMemo(
     () =>
@@ -159,84 +225,186 @@ export default function AdminShell({
     [salesByPersonnel, targets],
   );
 
-  const handleExportExcel = useCallback(() => {
-    const reportRows = monthlyReports.map((report) => ({
-      Date:
-        report.date instanceof Date
-          ? report.date.toLocaleDateString("en-GB")
-          : new Date(report.date).toLocaleDateString("en-GB"),
-      Salesperson: report.user.name,
-      "Sales Revenue": report.salesRevenue,
-      "Repeat Customers": report.repeatCustomers,
-      "New Customers": report.newCustomers,
-      "Walk-ins": report.walkIns,
-      "New Quotations": report.newQuotations,
-      "Closed Quotations": report.closedQuotations,
-      "Quotation Age": report.quotationAge,
-      "Hot Quotation Value": report.hotQuotationValue,
-      "Pipeline Value": report.salesPipelineValue,
-      "Accounts Receivable": report.accountsReceivable,
-      Opportunities: report.opportunities ?? "",
-      Challenges: report.challenges ?? "",
-      "Monthly Revenue Target":
-        targets.find((target) => target.user.name === report.user.name)
-          ?.salesRevenueTarget ?? "",
-      "Monthly Pipeline Target":
-        targets.find((target) => target.user.name === report.user.name)
-          ?.pipelineTarget ?? "",
-    }));
+  const refreshReportSummary = useCallback(() => {
+    const controller = new AbortController();
+    const queryParams = new URLSearchParams();
+    if (reportType === "Monthly Report") {
+      queryParams.set("type", "monthly");
+      queryParams.set("month", String(selectedMonth));
+      queryParams.set("year", String(selectedYear));
+    } else {
+      queryParams.set("type", "daily");
+      queryParams.set("date", selectedDate);
+    }
 
-    const targetRows = targets.map((target) => ({
-      Salesperson: target.user.name,
-      "Revenue Target": target.salesRevenueTarget,
-      "Pipeline Target": target.pipelineTarget,
-      "Repeat Customer Target": target.repeatCustomerTarget,
-      "New Customer Target": target.newCustomerTarget,
-      "Walk-in Target": target.walkInTarget,
-      "Quotation Target": target.quotationTarget,
+    fetch(`/api/reports?${queryParams.toString()}`, {
+      signal: controller.signal,
+    })
+      .then((response) => response.json())
+      .then((data) => setReportSummary(data))
+      .catch(() => setReportSummary(null));
+
+    return () => controller.abort();
+  }, [reportType, selectedDate, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    const cleanup = refreshReportSummary();
+    return () => cleanup?.();
+  }, [refreshReportSummary]);
+
+  const handleExportExcel = useCallback(() => {
+    const rows = reportSummary?.rows ?? [];
+    const reportRows = rows.map((row) => ({
+      Salesperson: row.name,
+      Status: row.status,
+      "Revenue Target": row.revenueSummary.target,
+      "Actual Revenue": row.revenueSummary.actual,
+      "Variance Amount": row.revenueSummary.varianceAmount,
+      "Variance %": row.revenueSummary.variancePercentage,
+      "Previous Day": row.revenueSummary.previousDay,
+      "Change vs Prev Day": row.revenueSummary.changeAgainstPreviousDay,
+      "Repeat Customers": row.customerSummary.repeat,
+      "New Customers": row.customerSummary.new,
+      "Walk-ins": row.customerSummary.walkIns,
+      "Monthly Acquisition": row.customerSummary.monthlyAcquisition,
+      "New Quotations": row.quotationSummary.new,
+      "Closed Quotations": row.quotationSummary.cumulative,
+      "Average Quotation Age": row.quotationSummary.averageAge,
+      "Hot Quotation Value": row.hotQuotationValue,
+      "Pipeline Value": row.salesPipelineValue,
+      "Accounts Receivable": row.accountReceivable,
+      "Win Rate": row.winRate,
+      Opportunities: row.opportunities,
+      Challenges: row.challenges,
     }));
 
     const workbook = XLSX.utils.book_new();
     const reportsSheet = XLSX.utils.json_to_sheet(reportRows, {
       header: [
-        "Date",
         "Salesperson",
-        "Sales Revenue",
+        "Status",
+        "Revenue Target",
+        "Actual Revenue",
+        "Variance Amount",
+        "Variance %",
+        "Previous Day",
+        "Change vs Prev Day",
         "Repeat Customers",
         "New Customers",
         "Walk-ins",
+        "Monthly Acquisition",
         "New Quotations",
         "Closed Quotations",
-        "Quotation Age",
+        "Average Quotation Age",
         "Hot Quotation Value",
         "Pipeline Value",
         "Accounts Receivable",
+        "Win Rate",
         "Opportunities",
         "Challenges",
-        "Monthly Revenue Target",
-        "Monthly Pipeline Target",
       ],
     });
-    XLSX.utils.book_append_sheet(workbook, reportsSheet, "Sales Records");
+    XLSX.utils.book_append_sheet(workbook, reportsSheet, "Report Summary");
 
-    const targetsSheet = XLSX.utils.json_to_sheet(targetRows, {
-      header: [
-        "Salesperson",
-        "Revenue Target",
-        "Pipeline Target",
-        "Repeat Customer Target",
-        "New Customer Target",
-        "Walk-in Target",
-        "Quotation Target",
-      ],
-    });
-    XLSX.utils.book_append_sheet(workbook, targetsSheet, "Targets");
+    const teamSheet = XLSX.utils.json_to_sheet([
+      {
+        "Active Personnel": reportSummary?.activePersonnel ?? 0,
+        Submitted: reportSummary?.submitted ?? 0,
+        Pending: reportSummary?.pending ?? 0,
+        Drafts: reportSummary?.drafts ?? 0,
+        "Team Target": reportSummary?.teamTotals.target ?? 0,
+        "Team Actual": reportSummary?.teamTotals.actual ?? 0,
+        "Team Variance": reportSummary?.teamTotals.varianceAmount ?? 0,
+        "Team Variance %":
+          reportSummary?.teamTotals.variancePercentage ?? "N/A",
+        "Team Customers": reportSummary?.teamTotals.customers ?? 0,
+        "Team Quotations": reportSummary?.teamTotals.quotations ?? 0,
+        "Team Pipeline": reportSummary?.teamTotals.pipeline ?? 0,
+        "Team Receivables": reportSummary?.teamTotals.receivables ?? 0,
+        "Team Win Rate": reportSummary?.teamTotals.winRate ?? "N/A",
+      },
+    ]);
+    XLSX.utils.book_append_sheet(workbook, teamSheet, "Team Totals");
+
+    const reportLabel =
+      reportType === "Monthly Report"
+        ? `${new Date(selectedYear, selectedMonth - 1).toLocaleString("en-GB", { month: "long" })}-${selectedYear}`
+        : selectedDate;
 
     XLSX.writeFile(
       workbook,
-      `sales-report-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      `sales-report-${reportType === "Monthly Report" ? "monthly" : "daily"}-${reportLabel}.xlsx`,
     );
-  }, [monthlyReports, targets]);
+  }, [reportSummary, reportType, selectedDate, selectedMonth, selectedYear]);
+
+  const handleExportPDF = useCallback(() => {
+    const rows = reportSummary?.rows ?? [];
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const title =
+      reportType === "Monthly Report"
+        ? `Monthly Sales Performance Report - ${new Date(selectedYear, selectedMonth - 1).toLocaleString("en-GB", { month: "long", year: "numeric" })}`
+        : `Daily Sales Performance Report - ${new Date(selectedDate).toLocaleDateString("en-GB")}`;
+
+    doc.setFontSize(16);
+    doc.text(title, 40, 40);
+    doc.setFontSize(11);
+    doc.text(
+      `Active personnel: ${reportSummary?.activePersonnel ?? 0}`,
+      40,
+      65,
+    );
+    doc.text(`Submitted: ${reportSummary?.submitted ?? 0}`, 40, 80);
+    doc.text(`Pending: ${reportSummary?.pending ?? 0}`, 40, 95);
+    doc.text(`Drafts: ${reportSummary?.drafts ?? 0}`, 40, 110);
+    doc.text(
+      `Team Actual: KES ${reportSummary?.teamTotals.actual.toLocaleString() ?? 0}`,
+      40,
+      130,
+    );
+    doc.text(
+      `Team Target: KES ${reportSummary?.teamTotals.target.toLocaleString() ?? 0}`,
+      40,
+      145,
+    );
+
+    let y = 175;
+    rows.forEach((row, index) => {
+      if (y > 720) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.setFontSize(12);
+      doc.text(`${index + 1}. ${row.name} — ${row.status}`, 40, y);
+      y += 15;
+      doc.setFontSize(10);
+      doc.text(
+        `Revenue: KES ${row.revenueSummary.actual.toLocaleString()} / Target: KES ${row.revenueSummary.target.toLocaleString()}`,
+        55,
+        y,
+      );
+      y += 12;
+      doc.text(
+        `Customers: ${row.customerSummary.monthlyAcquisition} | Quotations: ${row.quotationSummary.new} | Pipeline: KES ${row.salesPipelineValue.toLocaleString()}`,
+        55,
+        y,
+      );
+      y += 12;
+      doc.text(
+        `Win Rate: ${row.winRate} | Opportunities: ${row.opportunities}`,
+        55,
+        y,
+      );
+      y += 20;
+    });
+
+    const reportLabel =
+      reportType === "Monthly Report"
+        ? `${new Date(selectedYear, selectedMonth - 1).toLocaleString("en-GB", { month: "long" })}-${selectedYear}`
+        : selectedDate;
+    doc.save(
+      `sales-report-${reportType === "Monthly Report" ? "monthly" : "daily"}-${reportLabel}.pdf`,
+    );
+  }, [reportSummary, reportType, selectedDate, selectedMonth, selectedYear]);
 
   const sectionContent = useMemo(() => {
     switch (activeSection) {
@@ -291,18 +459,45 @@ export default function AdminShell({
                   Daily Reports
                 </h2>
                 <p className="mt-2 text-slate-600">
-                  Filter and view today’s submitted reports.
+                  Review all active sales personnel and their report status for
+                  a selected date.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <input
                   type="date"
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
                   className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
                 />
-                <input
-                  placeholder="Search salesperson"
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                />
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
+                  Active personnel
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-slate-900">
+                  {reportSummary?.activePersonnel ??
+                    users.filter((user) => user.role === "SALES" && user.active)
+                      .length}
+                </p>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
+                  Submitted
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-slate-900">
+                  {reportSummary?.submitted ?? 0}
+                </p>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
+                  Pending
+                </p>
+                <p className="mt-3 text-3xl font-semibold text-slate-900">
+                  {reportSummary?.pending ?? 0}
+                </p>
               </div>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -320,31 +515,35 @@ export default function AdminShell({
                         Status
                       </th>
                       <th className="px-4 py-3 font-semibold text-slate-600">
+                        Revenue
+                      </th>
+                      <th className="px-4 py-3 font-semibold text-slate-600">
                         Action
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
-                    {reports.map((report) => {
-                      const status =
-                        report.closedQuotations > 0 ? "Submitted" : "Pending";
-                      return (
-                        <tr key={report.id}>
-                          <td className="px-4 py-4 text-slate-700">
-                            {new Date(report.date).toLocaleDateString("en-GB")}
-                          </td>
-                          <td className="px-4 py-4 text-slate-700">
-                            {report.user.name}
-                          </td>
-                          <td className="px-4 py-4 text-slate-700">{status}</td>
-                          <td className="px-4 py-4">
-                            <button className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
-                              {status === "Submitted" ? "View" : "Reminder"}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {(reportSummary?.rows ?? []).map((row) => (
+                      <tr key={row.userId}>
+                        <td className="px-4 py-4 text-slate-700">
+                          {new Date(selectedDate).toLocaleDateString("en-GB")}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">{row.name}</td>
+                        <td className="px-4 py-4 text-slate-700">
+                          {row.status}
+                        </td>
+                        <td className="px-4 py-4 text-slate-700">
+                          KES {row.revenueSummary.actual.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-4">
+                          <button className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
+                            {row.status === "Submitted"
+                              ? "View"
+                              : "Not Submitted"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -504,7 +703,7 @@ export default function AdminShell({
                     Set monthly goals for each salesperson.
                   </p>
                 </div>
-                <div className="rounded-3xl bg-slate-50 p-4 shadow-sm w-full lg:w-[420px]">
+                <div className="rounded-3xl bg-slate-50 p-4 shadow-sm w-full lg:w-105">
                   <p className="text-sm font-semibold text-slate-900">
                     Assign target
                   </p>
@@ -636,11 +835,16 @@ export default function AdminShell({
                     Reports
                   </h2>
                   <p className="mt-2 text-slate-600">
-                    Generate and export executive summaries.
+                    Generate and export executive summaries for the full active
+                    team.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+                  <button
+                    type="button"
+                    onClick={refreshReportSummary}
+                    className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
                     Generate Report
                   </button>
                   <button
@@ -650,28 +854,233 @@ export default function AdminShell({
                   >
                     Export Excel
                   </button>
-                  <button className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                  <button
+                    type="button"
+                    onClick={handleExportPDF}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  >
                     Export PDF
                   </button>
                 </div>
               </div>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {summaryCards.slice(0, 4).map((card) => (
-                  <div
-                    key={card.title}
-                    className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <label className="space-y-2 text-sm text-slate-700">
+                  <span>Report type</span>
+                  <select
+                    value={reportType}
+                    onChange={(event) =>
+                      setReportType(
+                        event.target.value as "Daily Report" | "Monthly Report",
+                      )
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
                   >
+                    <option value="Daily Report">Daily Report</option>
+                    <option value="Monthly Report">Monthly Report</option>
+                  </select>
+                </label>
+                {reportType === "Daily Report" ? (
+                  <label className="space-y-2 text-sm text-slate-700">
+                    <span>Date</span>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(event) => setSelectedDate(event.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                    />
+                  </label>
+                ) : (
+                  <>
+                    <label className="space-y-2 text-sm text-slate-700">
+                      <span>Month</span>
+                      <select
+                        value={selectedMonth}
+                        onChange={(event) =>
+                          setSelectedMonth(Number(event.target.value))
+                        }
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                      >
+                        {Array.from(
+                          { length: 12 },
+                          (_, index) => index + 1,
+                        ).map((month) => (
+                          <option key={month} value={month}>
+                            {new Date(2024, month - 1).toLocaleString("en-GB", {
+                              month: "long",
+                            })}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-2 text-sm text-slate-700">
+                      <span>Year</span>
+                      <select
+                        value={selectedYear}
+                        onChange={(event) =>
+                          setSelectedYear(Number(event.target.value))
+                        }
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                      >
+                        {Array.from(
+                          { length: 3 },
+                          (_, index) => new Date().getFullYear() - index,
+                        ).map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                )}
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
+                    Personnel
+                  </p>
+                  <p className="mt-3 text-lg font-semibold text-slate-900">
+                    All active sales personnel
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
+                    Preview
+                  </p>
+                  <p className="mt-3 text-xl font-semibold text-slate-900">
+                    {reportType} preview
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    The report will include every active salesperson and the
+                    calculated team totals for the selected period.
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-3xl bg-slate-50 p-4">
+                      <p className="text-sm text-slate-500">Active personnel</p>
+                      <p className="mt-3 text-3xl font-semibold text-slate-900">
+                        {reportSummary?.activePersonnel ??
+                          users.filter(
+                            (user) => user.role === "SALES" && user.active,
+                          ).length}
+                      </p>
+                    </div>
+                    <div className="rounded-3xl bg-slate-50 p-4">
+                      <p className="text-sm text-slate-500">Submitted</p>
+                      <p className="mt-3 text-3xl font-semibold text-slate-900">
+                        {reportSummary?.submitted ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-3xl bg-slate-50 p-4">
+                      <p className="text-sm text-slate-500">Pending</p>
+                      <p className="mt-3 text-3xl font-semibold text-slate-900">
+                        {reportSummary?.pending ?? 0}
+                      </p>
+                    </div>
+                    <div className="rounded-3xl bg-slate-50 p-4">
+                      <p className="text-sm text-slate-500">Drafts</p>
+                      <p className="mt-3 text-3xl font-semibold text-slate-900">
+                        {reportSummary?.drafts ?? 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
-                      {card.title}
+                      Team totals
                     </p>
-                    <p className="mt-3 text-2xl font-semibold text-slate-900">
-                      {card.value}
-                    </p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {card.subtitle}
+                    <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                      Calculated summary
+                    </h2>
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Target</p>
+                    <p className="mt-3 text-xl font-semibold text-slate-900">
+                      KES{" "}
+                      {reportSummary?.teamTotals.target.toLocaleString() ?? "0"}
                     </p>
                   </div>
-                ))}
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Actual</p>
+                    <p className="mt-3 text-xl font-semibold text-slate-900">
+                      KES{" "}
+                      {reportSummary?.teamTotals.actual.toLocaleString() ?? "0"}
+                    </p>
+                  </div>
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Variance</p>
+                    <p className="mt-3 text-xl font-semibold text-slate-900">
+                      KES{" "}
+                      {reportSummary?.teamTotals.varianceAmount.toLocaleString() ??
+                        "0"}
+                    </p>
+                  </div>
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Win rate</p>
+                    <p className="mt-3 text-xl font-semibold text-slate-900">
+                      {reportSummary?.teamTotals.winRate ?? "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Salesperson
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Actual
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Target
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Variance
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Win Rate
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {(reportSummary?.rows ?? []).map((row) => (
+                        <tr key={row.userId}>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.name}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.status}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            KES {row.revenueSummary.actual.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            KES {row.revenueSummary.target.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            KES{" "}
+                            {row.revenueSummary.varianceAmount.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.winRate}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -739,9 +1148,9 @@ export default function AdminShell({
           onCollapseToggle={() => setSidebarCollapsed((prev) => !prev)}
           onClose={() => setSidebarOpen(false)}
         />
-        <main className="min-h-screen pt-[72px]">
-          <div className="fixed inset-x-0 top-0 z-30 h-[72px] border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm">
-            <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-8">
+        <main className="min-h-screen pt-18">
+          <div className="fixed inset-x-0 top-0 z-30 h-18 border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm">
+            <div className="mx-auto flex h-full max-w-360 items-center justify-between px-8">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -761,7 +1170,7 @@ export default function AdminShell({
                 </div>
               </div>
               <div className="flex flex-1 items-center justify-end gap-3">
-                <div className="relative hidden w-full max-w-[360px] md:block">
+                <div className="relative hidden w-full max-w-90 md:block">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
                   <input
                     type="search"
@@ -772,7 +1181,7 @@ export default function AdminShell({
                 <div className="flex items-center gap-3">
                   <button className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100">
                     <Bell className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
+                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
                       3
                     </span>
                   </button>
@@ -785,9 +1194,7 @@ export default function AdminShell({
             </div>
           </div>
 
-          <div className="mx-auto max-w-[1440px] px-8 py-8">
-            {sectionContent}
-          </div>
+          <div className="mx-auto max-w-360 px-8 py-8">{sectionContent}</div>
         </main>
       </div>
     </div>

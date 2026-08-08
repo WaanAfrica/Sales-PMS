@@ -72,10 +72,25 @@ export default function SalesDailyReportForm({
     key: keyof DailyReportFormData,
     value: string | number,
   ) => {
+    const numericKeys: Array<keyof DailyReportFormData> = [
+      "salesRevenue",
+      "repeatCustomers",
+      "newCustomers",
+      "walkIns",
+      "newQuotations",
+      "closedQuotations",
+      "quotationAge",
+      "salesPipelineValue",
+      "hotQuotationValue",
+      "accountsReceivable",
+    ];
+
     setForm((current) => ({
       ...current,
       [key]:
-        typeof value === "string" && key !== "date" ? Number(value) : value,
+        typeof value === "string" && numericKeys.includes(key)
+          ? Number(value)
+          : value,
     }));
   };
 
@@ -86,42 +101,49 @@ export default function SalesDailyReportForm({
     startTransition(async () => {
       try {
         if (report?.id) {
-          await updateDailyReport(report.id, {
-            date: form.date,
-            salesRevenue: form.salesRevenue,
-            repeatCustomers: form.repeatCustomers,
-            newCustomers: form.newCustomers,
-            walkIns: form.walkIns,
-            newQuotations: form.newQuotations,
-            closedQuotations: form.closedQuotations,
-            quotationAge: form.quotationAge,
-            hotQuotationValue: form.hotQuotationValue,
-            salesPipelineValue: form.salesPipelineValue,
-            accountsReceivable: form.accountsReceivable,
-            opportunities: form.opportunities,
-            challenges: form.challenges,
-          });
+          await updateDailyReport(
+            report.id,
+            {
+              date: form.date,
+              salesRevenue: form.salesRevenue,
+              repeatCustomers: form.repeatCustomers,
+              newCustomers: form.newCustomers,
+              walkIns: form.walkIns,
+              newQuotations: form.newQuotations,
+              closedQuotations: form.closedQuotations,
+              quotationAge: form.quotationAge,
+              hotQuotationValue: form.hotQuotationValue,
+              salesPipelineValue: form.salesPipelineValue,
+              accountsReceivable: form.accountsReceivable,
+              opportunities: form.opportunities,
+              challenges: form.challenges,
+            },
+            { submit },
+          );
           setSavedMessage(
             submit
               ? "Report updated successfully."
               : "Draft updated successfully.",
           );
         } else {
-          await createDailyReport({
-            date: form.date,
-            salesRevenue: form.salesRevenue,
-            repeatCustomers: form.repeatCustomers,
-            newCustomers: form.newCustomers,
-            walkIns: form.walkIns,
-            newQuotations: form.newQuotations,
-            closedQuotations: form.closedQuotations,
-            quotationAge: form.quotationAge,
-            hotQuotationValue: form.hotQuotationValue,
-            salesPipelineValue: form.salesPipelineValue,
-            accountsReceivable: form.accountsReceivable,
-            opportunities: form.opportunities,
-            challenges: form.challenges,
-          });
+          await createDailyReport(
+            {
+              date: form.date,
+              salesRevenue: form.salesRevenue,
+              repeatCustomers: form.repeatCustomers,
+              newCustomers: form.newCustomers,
+              walkIns: form.walkIns,
+              newQuotations: form.newQuotations,
+              closedQuotations: form.closedQuotations,
+              quotationAge: form.quotationAge,
+              hotQuotationValue: form.hotQuotationValue,
+              salesPipelineValue: form.salesPipelineValue,
+              accountsReceivable: form.accountsReceivable,
+              opportunities: form.opportunities,
+              challenges: form.challenges,
+            },
+            { submit },
+          );
           setSavedMessage(
             submit
               ? "Report submitted successfully."
@@ -144,13 +166,20 @@ export default function SalesDailyReportForm({
 
   return (
     <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
-          Daily Sales Report
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-          Today’s report
-        </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
+            Daily Sales Report
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+            Today’s report
+          </h2>
+        </div>
+        <span
+          className={`rounded-full px-3 py-2 text-sm font-semibold ${report ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
+        >
+          {report ? "Existing submission" : "New report"}
+        </span>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -296,7 +325,7 @@ export default function SalesDailyReportForm({
             onChange={(event) =>
               handleChange("opportunities", event.target.value)
             }
-            className="min-h-[120px] w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+            className="min-h-30 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />
         </label>
         <label className="space-y-2 text-sm text-slate-700">
@@ -304,7 +333,7 @@ export default function SalesDailyReportForm({
           <textarea
             value={form.challenges}
             onChange={(event) => handleChange("challenges", event.target.value)}
-            className="min-h-[120px] w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+            className="min-h-30 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />
         </label>
       </div>

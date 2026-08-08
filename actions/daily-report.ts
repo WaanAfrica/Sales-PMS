@@ -22,7 +22,10 @@ const dailyReportSchema = z.object({
   challenges: z.string().optional(),
 });
 
-export async function createDailyReport(input: z.infer<typeof dailyReportSchema>) {
+export async function createDailyReport(
+  input: z.infer<typeof dailyReportSchema>,
+  options?: { submit?: boolean },
+) {
   const session = await requireAuth();
   const parsed = dailyReportSchema.safeParse(input);
   if (!parsed.success) {
@@ -55,6 +58,8 @@ export async function createDailyReport(input: z.infer<typeof dailyReportSchema>
       accountsReceivable: dto.accountsReceivable,
       opportunities: dto.opportunities ?? null,
       challenges: dto.challenges ?? null,
+      status: options?.submit ? 'SUBMITTED' : 'DRAFT',
+      submittedAt: options?.submit ? new Date() : null,
     },
   });
 
@@ -62,7 +67,11 @@ export async function createDailyReport(input: z.infer<typeof dailyReportSchema>
   return created;
 }
 
-export async function updateDailyReport(id: string, input: z.infer<typeof dailyReportSchema>) {
+export async function updateDailyReport(
+  id: string,
+  input: z.infer<typeof dailyReportSchema>,
+  options?: { submit?: boolean },
+) {
   const session = await requireAuth();
   const parsed = dailyReportSchema.safeParse(input);
   if (!parsed.success) throw new Error('Invalid data');
@@ -95,6 +104,8 @@ export async function updateDailyReport(id: string, input: z.infer<typeof dailyR
       accountsReceivable: parsed.data.accountsReceivable,
       opportunities: parsed.data.opportunities ?? null,
       challenges: parsed.data.challenges ?? null,
+      status: options?.submit ? 'SUBMITTED' : existing.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT',
+      submittedAt: options?.submit ? existing.submittedAt ?? new Date() : existing.submittedAt,
     },
   });
 

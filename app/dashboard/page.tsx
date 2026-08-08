@@ -78,7 +78,12 @@ export default async function DashboardPage() {
   const todaysReport = normalizedReports
     .map((report) => ({
       ...report,
-      status: report.closedQuotations > 0 ? "Submitted" : "Pending",
+      status:
+        report.status === "SUBMITTED"
+          ? "Submitted"
+          : report.status === "DRAFT"
+            ? "Draft"
+            : "Pending",
     }))
     .find(
       (report) => new Date(report.date).toDateString() === now.toDateString(),
@@ -213,7 +218,7 @@ export default async function DashboardPage() {
       <div className="mx-auto max-w-7xl">
         <SalesShell
           userName={session.user.name}
-          todayReported={Boolean(todaysReport)}
+          todayReported={todaysReport?.status === "Submitted"}
           todayRevenue={todaySummary.revenue}
           targetValue={targetValue}
           achievementPercent={achievementPercent}

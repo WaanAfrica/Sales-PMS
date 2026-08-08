@@ -449,7 +449,7 @@ export default function SalesShell({
                   </div>
                   <div>
                     <p className="text-sm text-slate-500">Phone</p>
-                    <p className="mt-2 text-slate-900">+254 700 000 000</p>
+                    <p className="mt-2 text-slate-900">0725406058</p>
                   </div>
                 </div>
                 <div className="space-y-4 rounded-3xl bg-slate-50 p-6">
@@ -498,9 +498,11 @@ export default function SalesShell({
           onCollapseToggle={() => setSidebarCollapsed((prev) => !prev)}
           onClose={() => setSidebarOpen(false)}
         />
-        <main className="min-h-screen pt-[72px]">
-          <div className={`fixed inset-x-0 top-0 z-30 h-[72px] border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm ${sidebarCollapsed ? "md:left-[80px] md:w-[calc(100%-80px)]" : "md:left-[280px] md:w-[calc(100%-280px)]"}`}>
-            <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-8">
+        <main className="min-h-screen pt-18">
+          <div
+            className={`fixed inset-x-0 top-0 z-30 h-18 border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm ${sidebarCollapsed ? "md:left-20 md:w-[calc(100%-80px)]" : "md:left-70 md:w-[calc(100%-280px)]"}`}
+          >
+            <div className="mx-auto flex h-full max-w-360 items-center justify-between px-8">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -520,7 +522,7 @@ export default function SalesShell({
                 </div>
               </div>
               <div className="flex flex-1 items-center justify-end gap-3">
-                <div className="relative hidden w-full max-w-[360px] md:block">
+                <div className="relative hidden w-full max-w-90 md:block">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
                   <input
                     type="search"
@@ -531,7 +533,7 @@ export default function SalesShell({
                 <div className="flex items-center gap-3">
                   <button className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100">
                     <Bell className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
+                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
                       3
                     </span>
                   </button>
@@ -544,9 +546,7 @@ export default function SalesShell({
             </div>
           </div>
 
-          <div className="mx-auto max-w-[1440px] px-8 py-8">
-            {sectionContent}
-          </div>
+          <div className="mx-auto max-w-360 px-8 py-8">{sectionContent}</div>
         </main>
       </div>
     </div>

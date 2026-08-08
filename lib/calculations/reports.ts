@@ -101,32 +101,29 @@ export function getLatestAccountsReceivable(reports: RawReport[]) {
 }
 
 export function calculateVariance(actualRevenue: number, targetRevenue: number) {
-  return actualRevenue - targetRevenue;
+  const amount = actualRevenue - targetRevenue;
+  const percentage = targetRevenue === 0 ? 0 : Math.round((amount / targetRevenue) * 100);
+  return { amount, percentage };
+}
+
+export function calculateAchievementValue(actualRevenue: number, targetRevenue: number) {
+  if (targetRevenue <= 0) return 'N/A';
+  return `${Math.min(100, Math.round((actualRevenue / targetRevenue) * 100))}%`;
+}
+
+export function calculateChangeValue(currentValue: number, previousValue?: number) {
+  if (typeof previousValue === 'undefined' || previousValue === 0) return 'N/A';
+  return `${Math.round(((currentValue - previousValue) / previousValue) * 100)}%`;
+}
+
+export function calculateWinRateValue(closedQuotations: number, newQuotations: number) {
+  if (newQuotations <= 0) return 'N/A';
+  return `${Math.round((closedQuotations / newQuotations) * 100)}%`;
 }
 
 export function calculatePercentageChange(currentValue: number, previousValue: number) {
   if (previousValue === 0) return null;
   return Math.round(((currentValue - previousValue) / previousValue) * 100);
-}
-
-export function calculateChangeAgainstPreviousDay(
-  reports: RawReport[],
-  currentDate = new Date(),
-) {
-  const today = new Date(currentDate);
-  today.setHours(0, 0, 0, 0);
-
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const todayReport = findReportByDate(reports, today);
-  const yesterdayReport = findReportByDate(reports, yesterday);
-
-  if (!todayReport || !yesterdayReport || yesterdayReport.salesRevenue === 0) {
-    return null;
-  }
-
-  return calculatePercentageChange(todayReport.salesRevenue, yesterdayReport.salesRevenue);
 }
 
 export function sumMonthlyTargetRevenue(targets: MonthlyTargetRecord[]) {
