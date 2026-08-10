@@ -9,6 +9,7 @@ type DailyReport = {
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
+  dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
   quotationAge: number;
@@ -66,6 +67,7 @@ export default async function DashboardPage() {
     repeatCustomers: report.repeatCustomers,
     newCustomers: report.newCustomers,
     walkIns: report.walkIns,
+    dailyAcquisition: report.dailyAcquisition,
     newQuotations: report.newQuotations,
     closedQuotations: report.closedQuotations,
     quotationAge: report.quotationAge,
@@ -106,6 +108,7 @@ export default async function DashboardPage() {
         todaysReport.newCustomers +
         todaysReport.walkIns
       : 0,
+    dailyAcquisition: todaysReport?.dailyAcquisition ?? 0,
     quotations: todaysReport
       ? todaysReport.newQuotations + todaysReport.closedQuotations
       : 0,
@@ -120,6 +123,7 @@ export default async function DashboardPage() {
         sum + item.repeatCustomers + item.newCustomers + item.walkIns,
       0,
     ),
+    dailyAcquisition: monthlyReports.reduce((sum, item) => sum + item.dailyAcquisition, 0),
     quotations: monthlyReports.reduce(
       (sum, item) => sum + item.newQuotations + item.closedQuotations,
       0,
@@ -204,6 +208,7 @@ export default async function DashboardPage() {
     repeatCustomers: report.repeatCustomers,
     newCustomers: report.newCustomers,
     walkIns: report.walkIns,
+    dailyAcquisition: report.dailyAcquisition,
     newQuotations: report.newQuotations,
     closedQuotations: report.closedQuotations,
     quotationAge: report.quotationAge,

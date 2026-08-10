@@ -15,6 +15,7 @@ export type CustomerSummary = {
   repeat: number;
   new: number;
   walkIns: number;
+  dailyAcquisition: number;
   monthlyAcquisition: number;
 };
 
@@ -56,6 +57,7 @@ export type DailyReportModel = {
     varianceAmount: number;
     variancePercentage: number | string;
     customers: number;
+    dailyAcquisition: number;
     quotations: number;
     pipeline: number;
     receivables: number;
@@ -102,6 +104,7 @@ export type MonthlyReportModel = {
     varianceAmount: number;
     variancePercentage: number | string;
     customers: number;
+    dailyAcquisition: number;
     quotations: number;
     pipeline: number;
     receivables: number;
@@ -165,6 +168,7 @@ export function calculateTeamTotals(rows: SalespersonReportRow[]) {
     (sum, row) => sum + row.customerSummary.monthlyAcquisition,
     0,
   );
+  const dailyAcquisition = submittedRows.reduce((sum, row) => sum + row.customerSummary.dailyAcquisition, 0);
   const quotations = submittedRows.reduce(
     (sum, row) =>
       sum + row.quotationSummary.new + row.quotationSummary.cumulative,
@@ -183,6 +187,7 @@ export function calculateTeamTotals(rows: SalespersonReportRow[]) {
     varianceAmount: variance.amount,
     variancePercentage: variance.percentage,
     customers,
+    dailyAcquisition,
     quotations,
     pipeline,
     receivables,
@@ -228,6 +233,7 @@ export function calculateDailyReportModel(params: {
         repeat: report?.repeatCustomers ?? 0,
         new: report?.newCustomers ?? 0,
         walkIns: report?.walkIns ?? 0,
+        dailyAcquisition: report?.dailyAcquisition ?? 0,
         monthlyAcquisition: calculateMonthlyAcquisition(
           report?.repeatCustomers ?? 0,
           report?.newCustomers ?? 0,
@@ -355,6 +361,7 @@ export function calculateMonthlyReportModel(params: {
         ),
         new: submittedReports.reduce((sum, report) => sum + report.newCustomers, 0),
         walkIns: submittedReports.reduce((sum, report) => sum + report.walkIns, 0),
+        dailyAcquisition: submittedReports.reduce((sum, report) => sum + report.dailyAcquisition, 0),
         monthlyAcquisition: actualCustomers,
       },
       quotationSummary: {
@@ -391,6 +398,7 @@ export function calculateMonthlyReportModel(params: {
       (sum, row) => sum + row.customerSummary.monthlyAcquisition,
       0,
     ),
+    dailyAcquisition: rows.reduce((sum, row) => sum + row.customerSummary.dailyAcquisition, 0),
     quotations: rows.reduce((sum, row) => sum + row.quotationSummary.total, 0),
     pipeline: rows.reduce((sum, row) => sum + row.salesPipelineValue, 0),
     receivables: rows.reduce((sum, row) => sum + row.accountReceivable, 0),

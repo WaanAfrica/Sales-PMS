@@ -174,6 +174,7 @@ export default function AdminShell({
         repeat: number;
         new: number;
         walkIns: number;
+        dailyAcquisition: number;
         monthlyAcquisition: number;
       };
       quotationSummary: {
@@ -195,6 +196,7 @@ export default function AdminShell({
       varianceAmount: number;
       variancePercentage: number | string;
       customers: number;
+      dailyAcquisition: number;
       quotations: number;
       pipeline: number;
       receivables: number;
@@ -297,6 +299,7 @@ export default function AdminShell({
         String(reportSummary.teamTotals.variancePercentage ?? "-"),
       ],
       ["Total Customers", reportSummary.teamTotals.customers],
+      ["Total Daily Acquisition", reportSummary.teamTotals.dailyAcquisition],
       ["Total Quotations", reportSummary.teamTotals.quotations],
       ["Total Pipeline", money(reportSummary.teamTotals.pipeline)],
       ["Total Receivables", money(reportSummary.teamTotals.receivables)],
@@ -342,6 +345,7 @@ export default function AdminShell({
           row.customerSummary.monthlyAcquisition,
         ],
         ["CUSTOMERS - NEW", "", row.customerSummary.new, "", "", "", ""],
+        ["DAILY ACQUISITION", "", row.customerSummary.dailyAcquisition, "", "", "", ""],
         [
           "CUSTOMERS - WALK INS",
           "",
@@ -409,6 +413,7 @@ export default function AdminShell({
       ["Target", money(reportSummary.teamTotals.target)],
       ["Variance", money(reportSummary.teamTotals.varianceAmount)],
       ["Customers", reportSummary.teamTotals.customers],
+      ["Daily Acquisition", reportSummary.teamTotals.dailyAcquisition],
       ["Quotations", reportSummary.teamTotals.quotations],
       ["Pipeline", money(reportSummary.teamTotals.pipeline)],
       ["Receivables", money(reportSummary.teamTotals.receivables)],
@@ -436,10 +441,36 @@ export default function AdminShell({
     worksheet["!freeze"] = { xSplit: 0, ySplit: 1 };
     worksheet["!pageSetup"] = {
       orientation: "landscape",
+      paperSize: 9,
       fitToWidth: 1,
       fitToHeight: 0,
     };
-    const workbook = XLSX.utils.book_new();
+    worksheet["!margins"] = { left: 0.3, right: 0.3, top: 0.45, bottom: 0.45, header: 0.2, footer: 0.2 };
+    worksheet["!rows"] = rows.map((row) => ({ hpt: row.length === 0 ? 8 : 20 }));
+
+    const reportRange = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1:G1");
+    const blue = "2563EB";
+    const lightBlue = "DBEAFE";
+    const darkText = "0F172A";
+    const border = { style: "thin", color: { rgb: "CBD5E1" } };
+    for (let rowIndex = reportRange.s.r; rowIndex <= reportRange.e.r; rowIndex += 1) {
+      const firstCell = worksheet[XLSX.utils.encode_cell({ r: rowIndex, c: 0 })];
+      const firstValue = String(firstCell?.v ?? "");
+      const isTitle = rowIndex <= 5;
+      const isSection = ["TEAM PERFORMANCE SUMMARY", "SUBMISSION STATUS", "TEAM TOTAL"].includes(firstValue) || /^[A-Z][A-Z .'-]+$/.test(firstValue);
+      const isTableHeader = firstValue === "Metric";
+      for (let columnIndex = reportRange.s.c; columnIndex <= reportRange.e.c; columnIndex += 1) {
+        const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
+        const cell = worksheet[address];
+        if (!cell) continue;
+        cell.s = {
+          font: { name: "Aptos", sz: isTitle ? 14 : 10, bold: isTitle || isSection || isTableHeader, color: { rgb: isTitle || isSection || isTableHeader ? "FFFFFF" : darkText } },
+          fill: { patternType: "solid", fgColor: { rgb: isTitle || isSection ? blue : isTableHeader ? lightBlue : "FFFFFF" } },
+          alignment: { horizontal: columnIndex === 0 ? "left" : "center", vertical: "center", wrapText: true },
+          border: { top: border, bottom: border, left: border, right: border },
+        };
+      }
+    }`n    const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(
       workbook,
       worksheet,
@@ -449,7 +480,7 @@ export default function AdminShell({
       reportType === "Monthly Report"
         ? `Monthly_Sales_Performance_Report_${selectedYear}-${String(selectedMonth).padStart(2, "0")}.xlsx`
         : `Daily_Sales_Performance_Report_${selectedDate}.xlsx`;
-    XLSX.writeFile(workbook, filename);
+    XLSX.writeFile(workbook, filename, { bookType: "xlsx", compression: true, bookSST: true });
   }, [reportSummary, reportType, selectedDate, selectedMonth, selectedYear]);
   const handleExportPDF = useCallback(() => {
     if (!reportSummary) return;
@@ -513,6 +544,7 @@ export default function AdminShell({
       ["Variance", money(reportSummary.teamTotals.varianceAmount)],
       ["Variance %", reportSummary.teamTotals.variancePercentage],
       ["Total Customers", reportSummary.teamTotals.customers],
+      ["Total Daily Acquisition", reportSummary.teamTotals.dailyAcquisition],
       ["Total Quotations", reportSummary.teamTotals.quotations],
       ["Total Pipeline", money(reportSummary.teamTotals.pipeline)],
       ["Total Receivables", money(reportSummary.teamTotals.receivables)],
@@ -575,7 +607,7 @@ export default function AdminShell({
         ],
         [
           "Customers",
-          `Repeat ${row.customerSummary.repeat} | New ${row.customerSummary.new} | Walk-ins ${row.customerSummary.walkIns} | Acquisition ${row.customerSummary.monthlyAcquisition}`,
+          `Repeat ${row.customerSummary.repeat} | New ${row.customerSummary.new} | Walk-ins ${row.customerSummary.walkIns} | Daily acquisition ${row.customerSummary.dailyAcquisition} | Monthly acquisition ${row.customerSummary.monthlyAcquisition}`,
         ],
         [
           "Quotations",
@@ -626,6 +658,7 @@ export default function AdminShell({
       ["Target", money(reportSummary.teamTotals.target)],
       ["Variance", money(reportSummary.teamTotals.varianceAmount)],
       ["Customers", reportSummary.teamTotals.customers],
+      ["Daily Acquisition", reportSummary.teamTotals.dailyAcquisition],
       ["Quotations", reportSummary.teamTotals.quotations],
       ["Pipeline", money(reportSummary.teamTotals.pipeline)],
       ["Receivables", money(reportSummary.teamTotals.receivables)],

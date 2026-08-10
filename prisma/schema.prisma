@@ -39,6 +39,7 @@ model DailySales {
   repeatCustomers      Int
   newCustomers         Int
   walkIns              Int
+  dailyAcquisition     Int @default(0)
   newQuotations        Int
   closedQuotations     Int
   quotationAge         Float

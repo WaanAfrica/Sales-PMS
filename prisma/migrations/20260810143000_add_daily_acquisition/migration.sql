@@ -1,0 +1,6 @@
+CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'DRAFT', 'SUBMITTED');
+
+ALTER TABLE "DailySales"
+  ADD COLUMN "status" "ReportStatus" NOT NULL DEFAULT 'PENDING',
+  ADD COLUMN "submittedAt" TIMESTAMP(3),
+  ADD COLUMN "dailyAcquisition" INTEGER NOT NULL DEFAULT 0;

@@ -9,6 +9,7 @@ type DailyReportFormData = {
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
+  dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
   quotationAge: number;
@@ -26,6 +27,7 @@ type SalesReport = {
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
+  dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
   quotationAge: number;
@@ -55,6 +57,7 @@ export default function SalesDailyReportForm({
       repeatCustomers: report?.repeatCustomers ?? 0,
       newCustomers: report?.newCustomers ?? 0,
       walkIns: report?.walkIns ?? 0,
+      dailyAcquisition: report?.dailyAcquisition ?? 0,
       newQuotations: report?.newQuotations ?? 0,
       closedQuotations: report?.closedQuotations ?? 0,
       quotationAge: report?.quotationAge ?? 0,
@@ -77,6 +80,7 @@ export default function SalesDailyReportForm({
       "repeatCustomers",
       "newCustomers",
       "walkIns",
+      "dailyAcquisition",
       "newQuotations",
       "closedQuotations",
       "quotationAge",
@@ -109,6 +113,7 @@ export default function SalesDailyReportForm({
               repeatCustomers: form.repeatCustomers,
               newCustomers: form.newCustomers,
               walkIns: form.walkIns,
+              dailyAcquisition: form.dailyAcquisition,
               newQuotations: form.newQuotations,
               closedQuotations: form.closedQuotations,
               quotationAge: form.quotationAge,
@@ -133,6 +138,7 @@ export default function SalesDailyReportForm({
               repeatCustomers: form.repeatCustomers,
               newCustomers: form.newCustomers,
               walkIns: form.walkIns,
+              dailyAcquisition: form.dailyAcquisition,
               newQuotations: form.newQuotations,
               closedQuotations: form.closedQuotations,
               quotationAge: form.quotationAge,
@@ -240,7 +246,19 @@ export default function SalesDailyReportForm({
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />
         </label>
-      </div>
+        <label className="space-y-2 text-sm text-slate-700">
+          <span>Daily Acquisition</span>
+          <input
+            type="number"
+            min="0"
+            required
+            value={form.dailyAcquisition}
+            onChange={(event) =>
+              handleChange("dailyAcquisition", event.target.value)
+            }
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+          />
+        </label>`n      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <label className="space-y-2 text-sm text-slate-700">

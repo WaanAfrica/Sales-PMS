@@ -16,6 +16,7 @@ export interface DailySalesRecord {
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
+  dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
   quotationAge: number;

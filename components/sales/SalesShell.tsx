@@ -14,6 +14,7 @@ type SalesReportItem = {
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
+  dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
   quotationAge: number;
@@ -34,6 +35,7 @@ type SalesShellProps = {
   todaySummary: {
     revenue: number;
     customers: number;
+    dailyAcquisition: number;
     quotations: number;
     pipeline: number;
     receivables: number;
@@ -41,6 +43,7 @@ type SalesShellProps = {
   monthlySummary: {
     revenue: number;
     customers: number;
+    dailyAcquisition: number;
     quotations: number;
     pipeline: number;
     receivables: number;
@@ -203,6 +206,11 @@ export default function SalesShell({
                   </p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 p-5">
+                  <p className="text-sm text-slate-500">Daily acquisition</p>
+                  <p className="mt-3 text-2xl font-semibold text-slate-900">
+                    {todaySummary.dailyAcquisition}
+                  </p>
+                </div>`n                <div className="rounded-3xl bg-slate-50 p-5">
                   <p className="text-sm text-slate-500">Quotations</p>
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
                     {todaySummary.quotations}
