@@ -6,6 +6,11 @@ import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "Sales PMS",
   description: "Sales performance management system",
+  icons: {
+    icon: "/assets/company/logo.jpeg",
+    shortcut: "/assets/company/logo.jpeg",
+    apple: "/assets/company/logo.jpeg",
+  },
 };
 
 export default function RootLayout({

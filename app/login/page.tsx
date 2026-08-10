@@ -9,8 +9,16 @@ export default function LoginPage() {
           <div className="absolute inset-x-0 top-0 h-40 bg-radial-[at_top_left] from-sky-400/20 to-transparent to-30%" />
           <div className="absolute inset-x-0 bottom-0 h-48 bg-radial-[at_bottom_right] from-blue-500/20 to-transparent to-30%" />
           <div className="relative z-10 max-w-xl space-y-6">
-            <div className="inline-flex items-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.32em] text-sky-200 shadow-sm shadow-slate-900/10">
-              Sales Performance Management
+            <div className="flex items-center gap-3 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.32em] text-sky-200 shadow-sm shadow-slate-900/10">
+              <div className="relative h-10 w-10 overflow-hidden rounded-2xl bg-slate-800">
+                <Image
+                  src="/assets/company/logo.jpeg"
+                  alt="Company logo"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <span>Sales Performance Management</span>
             </div>
             <div className="space-y-4">
               <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
