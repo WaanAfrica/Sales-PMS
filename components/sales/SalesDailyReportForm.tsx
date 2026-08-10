@@ -1,21 +1,21 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { createDailyReport, updateDailyReport } from "@/actions/daily-report";
+import { createDailyReport, updateDailyReport } from "../../actions/daily-report";
 
 type DailyReportFormData = {
   date: string;
-  salesRevenue: number;
-  repeatCustomers: number;
-  newCustomers: number;
-  walkIns: number;
-  dailyAcquisition: number;
-  newQuotations: number;
-  closedQuotations: number;
-  quotationAge: number;
-  salesPipelineValue: number;
-  hotQuotationValue: number;
-  accountsReceivable: number;
+  salesRevenue: string;
+  repeatCustomers: string;
+  newCustomers: string;
+  walkIns: string;
+  dailyAcquisition: string;
+  newQuotations: string;
+  closedQuotations: string;
+  quotationAge: string;
+  salesPipelineValue: string;
+  hotQuotationValue: string;
+  accountsReceivable: string;
   opportunities: string;
   challenges: string;
 };
@@ -53,17 +53,17 @@ export default function SalesDailyReportForm({
 
     return {
       date: reportDate,
-      salesRevenue: report?.salesRevenue ?? 0,
-      repeatCustomers: report?.repeatCustomers ?? 0,
-      newCustomers: report?.newCustomers ?? 0,
-      walkIns: report?.walkIns ?? 0,
-      dailyAcquisition: report?.dailyAcquisition ?? 0,
-      newQuotations: report?.newQuotations ?? 0,
-      closedQuotations: report?.closedQuotations ?? 0,
-      quotationAge: report?.quotationAge ?? 0,
-      salesPipelineValue: report?.salesPipelineValue ?? 0,
-      hotQuotationValue: report?.hotQuotationValue ?? 0,
-      accountsReceivable: report?.accountsReceivable ?? 0,
+      salesRevenue: String(report?.salesRevenue ?? 0),
+      repeatCustomers: String(report?.repeatCustomers ?? 0),
+      newCustomers: String(report?.newCustomers ?? 0),
+      walkIns: String(report?.walkIns ?? 0),
+      dailyAcquisition: String(report?.dailyAcquisition ?? 0),
+      newQuotations: String(report?.newQuotations ?? 0),
+      closedQuotations: String(report?.closedQuotations ?? 0),
+      quotationAge: String(report?.quotationAge ?? 0),
+      salesPipelineValue: String(report?.salesPipelineValue ?? 0),
+      hotQuotationValue: String(report?.hotQuotationValue ?? 0),
+      accountsReceivable: String(report?.accountsReceivable ?? 0),
       opportunities: report?.opportunities ?? "",
       challenges: report?.challenges ?? "",
     };
@@ -93,7 +93,7 @@ export default function SalesDailyReportForm({
       ...current,
       [key]:
         typeof value === "string" && numericKeys.includes(key)
-          ? Number(value)
+          ? value.replace(/^0+(?=\d)/, "") || "0"
           : value,
     }));
   };
@@ -109,17 +109,17 @@ export default function SalesDailyReportForm({
             report.id,
             {
               date: form.date,
-              salesRevenue: form.salesRevenue,
-              repeatCustomers: form.repeatCustomers,
-              newCustomers: form.newCustomers,
-              walkIns: form.walkIns,
-              dailyAcquisition: form.dailyAcquisition,
-              newQuotations: form.newQuotations,
-              closedQuotations: form.closedQuotations,
-              quotationAge: form.quotationAge,
-              hotQuotationValue: form.hotQuotationValue,
-              salesPipelineValue: form.salesPipelineValue,
-              accountsReceivable: form.accountsReceivable,
+              salesRevenue: Number(form.salesRevenue),
+              repeatCustomers: Number(form.repeatCustomers),
+              newCustomers: Number(form.newCustomers),
+              walkIns: Number(form.walkIns),
+              dailyAcquisition: Number(form.dailyAcquisition),
+              newQuotations: Number(form.newQuotations),
+              closedQuotations: Number(form.closedQuotations),
+              quotationAge: Number(form.quotationAge),
+              hotQuotationValue: Number(form.hotQuotationValue),
+              salesPipelineValue: Number(form.salesPipelineValue),
+              accountsReceivable: Number(form.accountsReceivable),
               opportunities: form.opportunities,
               challenges: form.challenges,
             },
@@ -134,17 +134,17 @@ export default function SalesDailyReportForm({
           await createDailyReport(
             {
               date: form.date,
-              salesRevenue: form.salesRevenue,
-              repeatCustomers: form.repeatCustomers,
-              newCustomers: form.newCustomers,
-              walkIns: form.walkIns,
-              dailyAcquisition: form.dailyAcquisition,
-              newQuotations: form.newQuotations,
-              closedQuotations: form.closedQuotations,
-              quotationAge: form.quotationAge,
-              hotQuotationValue: form.hotQuotationValue,
-              salesPipelineValue: form.salesPipelineValue,
-              accountsReceivable: form.accountsReceivable,
+              salesRevenue: Number(form.salesRevenue),
+              repeatCustomers: Number(form.repeatCustomers),
+              newCustomers: Number(form.newCustomers),
+              walkIns: Number(form.walkIns),
+              dailyAcquisition: Number(form.dailyAcquisition),
+              newQuotations: Number(form.newQuotations),
+              closedQuotations: Number(form.closedQuotations),
+              quotationAge: Number(form.quotationAge),
+              hotQuotationValue: Number(form.hotQuotationValue),
+              salesPipelineValue: Number(form.salesPipelineValue),
+              accountsReceivable: Number(form.accountsReceivable),
               opportunities: form.opportunities,
               challenges: form.challenges,
             },
@@ -258,7 +258,9 @@ export default function SalesDailyReportForm({
             }
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />
-        </label>`n      </div>
+        </label>
+        `n{" "}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <label className="space-y-2 text-sm text-slate-700">

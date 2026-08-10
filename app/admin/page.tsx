@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
-import AdminShell from "@/components/admin/AdminShell";
+import { prisma } from "../../lib/prisma";
+import { requireRole } from "../../lib/auth";
+import AdminShell from "../../components/admin/AdminShell";
 
 function formatKES(value: number) {
   return value.toLocaleString("en-KE", {
@@ -223,8 +223,8 @@ export default async function AdminPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <div className="mx-auto max-w-7xl">
+    <main className="h-screen overflow-hidden bg-slate-50 px-8 pb-8 pt-0 text-slate-900">
+      <div className="h-full">
         <AdminShell
           summaryCards={summaryCards}
           dailyRevenueTrend={dailyRevenueTrend}

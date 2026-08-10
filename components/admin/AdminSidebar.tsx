@@ -248,7 +248,9 @@ export default function AdminSidebar({
                   className="flex w-full items-center gap-3 rounded-2xl bg-slate-800 px-4 py-3 text-left text-sm font-semibold text-slate-100 transition hover:bg-slate-700"
                 >
                   <Settings2 className="h-4 w-4" />
-                  <span className={`${collapsed ? "hidden" : "block"}`}>Settings</span>
+                  <span className={`${collapsed ? "hidden" : "block"}`}>
+                    Settings
+                  </span>
                 </button>
                 <div className="hidden md:flex lg:hidden items-center gap-2">
                   <button
@@ -264,7 +266,9 @@ export default function AdminSidebar({
                   onClick={() => signOut()}
                   className="flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-800 px-4 py-3 text-left text-sm font-semibold text-slate-100 hover:bg-slate-700"
                 >
-                  <span className={`${collapsed ? "hidden" : "block"}`}>Logout</span>
+                  <span className={`${collapsed ? "hidden" : "block"}`}>
+                    Logout
+                  </span>
                   <LogOut className="h-4 w-4" />
                 </button>
               </div>

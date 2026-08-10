@@ -5,12 +5,12 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import { useEffect } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
-import { assignTargets, createUser } from "@/actions/daily-report";
+import { assignTargets, createUser } from "../../actions/daily-report";
 import DashboardOverview from "./DashboardOverview";
 import DashboardChart from "./DashboardChart";
 import DashboardTable from "./DashboardTable";
 import AdminSidebar from "./AdminSidebar";
-import CompanyValuesSection from "@/components/CompanyValuesSection";
+import CompanyValuesSection from "../CompanyValuesSection";
 
 type SummaryCard = {
   title: string;
@@ -113,6 +113,7 @@ export default function AdminShell({
   const [activeSection, setActiveSection] = useState<Section>("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarWidthClass = sidebarCollapsed ? "md:ml-20" : "md:ml-72";
   const [userForm, setUserForm] = useState<{
     name: string;
     email: string;
@@ -348,7 +349,15 @@ export default function AdminShell({
           row.customerSummary.monthlyAcquisition,
         ],
         ["CUSTOMERS - NEW", "", row.customerSummary.new, "", "", "", ""],
-        ["DAILY ACQUISITION", "", row.customerSummary.dailyAcquisition, "", "", "", ""],
+        [
+          "DAILY ACQUISITION",
+          "",
+          row.customerSummary.dailyAcquisition,
+          "",
+          "",
+          "",
+          "",
+        ],
         [
           "CUSTOMERS - WALK INS",
           "",
@@ -448,28 +457,72 @@ export default function AdminShell({
       fitToWidth: 1,
       fitToHeight: 0,
     };
-    worksheet["!margins"] = { left: 0.3, right: 0.3, top: 0.45, bottom: 0.45, header: 0.2, footer: 0.2 };
-    worksheet["!rows"] = rows.map((row) => ({ hpt: row.length === 0 ? 8 : 20 }));
+    worksheet["!margins"] = {
+      left: 0.3,
+      right: 0.3,
+      top: 0.45,
+      bottom: 0.45,
+      header: 0.2,
+      footer: 0.2,
+    };
+    worksheet["!rows"] = rows.map((row) => ({
+      hpt: row.length === 0 ? 8 : 20,
+    }));
 
     const reportRange = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1:G1");
     const blue = "2563EB";
     const lightBlue = "DBEAFE";
     const darkText = "0F172A";
     const border = { style: "thin", color: { rgb: "CBD5E1" } };
-    for (let rowIndex = reportRange.s.r; rowIndex <= reportRange.e.r; rowIndex += 1) {
-      const firstCell = worksheet[XLSX.utils.encode_cell({ r: rowIndex, c: 0 })];
+    for (
+      let rowIndex = reportRange.s.r;
+      rowIndex <= reportRange.e.r;
+      rowIndex += 1
+    ) {
+      const firstCell =
+        worksheet[XLSX.utils.encode_cell({ r: rowIndex, c: 0 })];
       const firstValue = String(firstCell?.v ?? "");
       const isTitle = rowIndex <= 5;
-      const isSection = ["TEAM PERFORMANCE SUMMARY", "SUBMISSION STATUS", "TEAM TOTAL"].includes(firstValue) || /^[A-Z][A-Z .'-]+$/.test(firstValue);
+      const isSection =
+        [
+          "TEAM PERFORMANCE SUMMARY",
+          "SUBMISSION STATUS",
+          "TEAM TOTAL",
+        ].includes(firstValue) || /^[A-Z][A-Z .'-]+$/.test(firstValue);
       const isTableHeader = firstValue === "Metric";
-      for (let columnIndex = reportRange.s.c; columnIndex <= reportRange.e.c; columnIndex += 1) {
+      for (
+        let columnIndex = reportRange.s.c;
+        columnIndex <= reportRange.e.c;
+        columnIndex += 1
+      ) {
         const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
         const cell = worksheet[address];
         if (!cell) continue;
         cell.s = {
-          font: { name: "Aptos", sz: isTitle ? 14 : 10, bold: isTitle || isSection || isTableHeader, color: { rgb: isTitle || isSection || isTableHeader ? "FFFFFF" : darkText } },
-          fill: { patternType: "solid", fgColor: { rgb: isTitle || isSection ? blue : isTableHeader ? lightBlue : "FFFFFF" } },
-          alignment: { horizontal: columnIndex === 0 ? "left" : "center", vertical: "center", wrapText: true },
+          font: {
+            name: "Aptos",
+            sz: isTitle ? 14 : 10,
+            bold: isTitle || isSection || isTableHeader,
+            color: {
+              rgb: isTitle || isSection || isTableHeader ? "FFFFFF" : darkText,
+            },
+          },
+          fill: {
+            patternType: "solid",
+            fgColor: {
+              rgb:
+                isTitle || isSection
+                  ? blue
+                  : isTableHeader
+                    ? lightBlue
+                    : "FFFFFF",
+            },
+          },
+          alignment: {
+            horizontal: columnIndex === 0 ? "left" : "center",
+            vertical: "center",
+            wrapText: true,
+          },
           border: { top: border, bottom: border, left: border, right: border },
         };
       }
@@ -484,7 +537,11 @@ export default function AdminShell({
       reportType === "Monthly Report"
         ? `Monthly_Sales_Performance_Report_${selectedYear}-${String(selectedMonth).padStart(2, "0")}.xlsx`
         : `Daily_Sales_Performance_Report_${selectedDate}.xlsx`;
-    XLSX.writeFile(workbook, filename, { bookType: "xlsx", compression: true, bookSST: true });
+    XLSX.writeFile(workbook, filename, {
+      bookType: "xlsx",
+      compression: true,
+      bookSST: true,
+    });
   }, [reportSummary, reportType, selectedDate, selectedMonth, selectedYear]);
   const handleExportPDF = useCallback(() => {
     if (!reportSummary) return;
@@ -913,7 +970,9 @@ export default function AdminShell({
                           type="button"
                           onClick={() => setShowPassword((current) => !current)}
                           className="absolute inset-y-0 right-3 flex items-center rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-label={
+                            showPassword ? "Hide password" : "Show password"
+                          }
                         >
                           {showPassword ? (
                             <EyeOff className="h-4 w-4" />
@@ -1560,12 +1619,16 @@ export default function AdminShell({
   return (
     <div className="flex h-screen overflow-hidden">
       <AdminSidebar
-        sidebarOpen={sidebarOpen}
-        sidebarCollapsed={sidebarCollapsed}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        open={sidebarOpen}
+        collapsed={sidebarCollapsed}
         onCollapseToggle={() => setSidebarCollapsed((prev) => !prev)}
         onClose={() => setSidebarOpen(false)}
       />
-      <main className={`${sidebarWidthClass} h-screen overflow-hidden`}>
+      <main
+        className={`${sidebarWidthClass} flex-1 min-w-0 h-screen overflow-hidden`}
+      >
         <div className="flex h-full flex-col">
           <div className="flex-1 overflow-y-auto">
             <section className="sticky top-0 z-10 border-b border-slate-200/70 bg-linear-to-r from-slate-50 via-slate-50 to-white px-4 py-2 shadow-sm backdrop-blur-sm sm:px-6 lg:px-8">

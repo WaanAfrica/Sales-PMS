@@ -6,6 +6,7 @@ import SalesSidebar from "./SalesSidebar";
 import SalesStatCards from "./SalesStatCards";
 import SalesTrendChart from "./SalesTrendChart";
 import SalesDailyReportForm from "./SalesDailyReportForm";
+import CompanyValuesSection from "../CompanyValuesSection";
 
 type SalesReportItem = {
   id: string;
@@ -61,6 +62,7 @@ const sections = [
   "Daily Report",
   "My Reports",
   "My Performance",
+  "Company Values",
   "Profile",
 ] as const;
 
@@ -210,7 +212,9 @@ export default function SalesShell({
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
                     {todaySummary.dailyAcquisition}
                   </p>
-                </div>`n                <div className="rounded-3xl bg-slate-50 p-5">
+                </div>
+                `n{" "}
+                <div className="rounded-3xl bg-slate-50 p-5">
                   <p className="text-sm text-slate-500">Quotations</p>
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
                     {todaySummary.quotations}
@@ -434,6 +438,8 @@ export default function SalesShell({
             </div>
           </div>
         );
+      case "Company Values":
+        return <CompanyValuesSection />;
       case "Profile":
         return (
           <div className="space-y-6">
@@ -494,69 +500,71 @@ export default function SalesShell({
     userName,
   ]);
 
+  const sidebarWidthClass = sidebarCollapsed ? "md:ml-20" : "md:ml-[280px]";
+
   return (
-    <div className="relative min-h-screen bg-[#F8FAFC]">
-      <div className="md:grid md:grid-cols-[auto_1fr] md:gap-8">
-        <SalesSidebar
-          userName={userName}
-          activeSection={activeSection}
-          onSectionChange={setActiveSection}
-          open={sidebarOpen}
-          collapsed={sidebarCollapsed}
-          onCollapseToggle={() => setSidebarCollapsed((prev) => !prev)}
-          onClose={() => setSidebarOpen(false)}
-        />
-        <main className="min-h-screen pt-18">
-          <div
-            className={`fixed inset-x-0 top-0 z-30 h-18 border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm ${sidebarCollapsed ? "md:left-20 md:w-[calc(100%-80px)]" : "md:left-70 md:w-[calc(100%-280px)]"}`}
-          >
-            <div className="mx-auto flex h-full max-w-360 items-center justify-between px-8">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-slate-700 shadow-sm md:hidden"
-                  aria-label="Open navigation"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
+    <div className="h-full overflow-hidden bg-[#F8FAFC]">
+      <SalesSidebar
+        userName={userName}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        open={sidebarOpen}
+        collapsed={sidebarCollapsed}
+        onCollapseToggle={() => setSidebarCollapsed((prev) => !prev)}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <main className={`${sidebarWidthClass} h-screen overflow-hidden`}>
+        <div className="flex h-full flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <section className="sticky top-0 z-10 border-b border-slate-200/70 bg-linear-to-r from-slate-50 via-sky-50 to-white px-4 py-2 shadow-sm backdrop-blur-sm sm:px-6 lg:px-8">
+              <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.32em] text-blue-600">
+                  <p className="text-xs font-semibold uppercase tracking-[0.32em] text-blue-600">
                     Sales
                   </p>
-                  <h1 className="text-3xl font-semibold text-slate-950">
+                  <h1 className="mt-1 text-2xl font-semibold text-slate-950">
                     {activeSection}
                   </h1>
                 </div>
-              </div>
-              <div className="flex flex-1 items-center justify-end gap-3">
-                <div className="relative hidden w-full max-w-90 md:block">
-                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
-                  <input
-                    type="search"
-                    placeholder="Search reports"
-                    className="w-full rounded-full border border-[#E5E7EB] bg-white px-4 py-3 pl-11 text-sm text-[#111827] shadow-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <button className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
-                      3
-                    </span>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarOpen(true)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-slate-700 shadow-sm md:hidden"
+                    aria-label="Open navigation"
+                  >
+                    <Menu className="h-5 w-5" />
                   </button>
-                  <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100">
-                    <UserCircle2 className="h-5 w-5 text-blue-600" />
-                    <span className="hidden sm:inline">{userName}</span>
-                  </button>
+                  <div className="relative hidden w-full max-w-md md:block">
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+                    <input
+                      type="search"
+                      placeholder="Search reports"
+                      className="w-full rounded-full border border-[#E5E7EB] bg-white px-4 py-3 pl-11 text-sm text-[#111827] shadow-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100">
+                      <Bell className="h-5 w-5" />
+                      <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
+                        3
+                      </span>
+                    </button>
+                    <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100">
+                      <UserCircle2 className="h-5 w-5 text-blue-600" />
+                      <span className="hidden sm:inline">{userName}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+            </section>
+
+            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+              {sectionContent}
             </div>
           </div>
-
-          <div className="mx-auto max-w-360 px-8 py-8">{sectionContent}</div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { DailySalesRecord, MonthlyTargetRecord } from "@/types";
+import type { DailySalesRecord, MonthlyTargetRecord } from "../../types";
 
 type ReportDate = string | Date;
 

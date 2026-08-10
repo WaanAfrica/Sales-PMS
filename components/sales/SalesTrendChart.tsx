@@ -39,7 +39,7 @@ export default function SalesTrendChart({
           A simple view of your monthly impact.
         </p>
       </div>
-      <div className="mt-8 h-[300px]">
+      <div className="mt-8 h-75">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { prisma } from "../../../lib/prisma";
+import { requireRole } from "../../../lib/auth";
 import {
   calculateDailyReportModel,
   calculateMonthlyReportModel,
-} from "@/lib/calculations/reporting";
+} from "../../../lib/calculations/reporting";
 
 export async function GET(request: Request) {
   await requireRole("ADMIN");

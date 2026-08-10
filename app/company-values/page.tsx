@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "../../lib/auth";
 
 const values = [
   {

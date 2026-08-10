@@ -1,6 +1,25 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
-import SalesShell from "@/components/sales/SalesShell";
+import { prisma } from "../../lib/prisma";
+import { requireRole } from "../../lib/auth";
+import SalesShell from "../../components/sales/SalesShell";
+
+type DailyReportRecord = {
+  id: string;
+  date: Date;
+  salesRevenue: number;
+  repeatCustomers: number;
+  newCustomers: number;
+  walkIns: number;
+  dailyAcquisition: number;
+  newQuotations: number;
+  closedQuotations: number;
+  quotationAge: number;
+  hotQuotationValue: number;
+  salesPipelineValue: number;
+  accountsReceivable: number;
+  opportunities: string | null;
+  challenges: string | null;
+  status: "PENDING" | "DRAFT" | "SUBMITTED";
+};
 
 type DailyReport = {
   id: string;
@@ -57,7 +76,7 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const normalizedReports: DailyReport[] = allReports.map((report) => ({
+  const normalizedReports: DailyReport[] = allReports.map((report: DailyReportRecord) => ({
     id: report.id,
     date:
       report.date instanceof Date
@@ -80,7 +99,7 @@ export default async function DashboardPage() {
   }));
 
   const todaysReport = normalizedReports
-    .map((report) => ({
+    .map((report: DailyReport) => ({
       ...report,
       status:
         report.status === "SUBMITTED"
@@ -117,23 +136,26 @@ export default async function DashboardPage() {
   };
 
   const monthlySummary = {
-    revenue: monthlyReports.reduce((sum, item) => sum + item.salesRevenue, 0),
+    revenue: monthlyReports.reduce((sum: number, item: DailyReport) => sum + item.salesRevenue, 0),
     customers: monthlyReports.reduce(
-      (sum, item) =>
+      (sum: number, item: DailyReport) =>
         sum + item.repeatCustomers + item.newCustomers + item.walkIns,
       0,
     ),
-    dailyAcquisition: monthlyReports.reduce((sum, item) => sum + item.dailyAcquisition, 0),
+    dailyAcquisition: monthlyReports.reduce(
+      (sum: number, item: DailyReport) => sum + item.dailyAcquisition,
+      0,
+    ),
     quotations: monthlyReports.reduce(
-      (sum, item) => sum + item.newQuotations + item.closedQuotations,
+      (sum: number, item: DailyReport) => sum + item.newQuotations + item.closedQuotations,
       0,
     ),
     pipeline: monthlyReports.reduce(
-      (sum, item) => sum + item.salesPipelineValue,
+      (sum: number, item: DailyReport) => sum + item.salesPipelineValue,
       0,
     ),
     receivables: monthlyReports.reduce(
-      (sum, item) => sum + item.accountsReceivable,
+      (sum: number, item: DailyReport) => sum + item.accountsReceivable,
       0,
     ),
   };
@@ -155,7 +177,7 @@ export default async function DashboardPage() {
     },
   });
   const previousCustomerCount = previousMonthReports.reduce(
-    (sum, item) =>
+    (sum: number, item: DailyReportRecord) =>
       sum + item.repeatCustomers + item.newCustomers + item.walkIns,
     0,
   );
@@ -170,7 +192,7 @@ export default async function DashboardPage() {
   const revenueTrend = monthlyReports
     .slice(0, 7)
     .reverse()
-    .map((report) => ({
+    .map((report: DailyReport) => ({
       label: new Date(report.date).toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
@@ -181,7 +203,7 @@ export default async function DashboardPage() {
   const pipelineTrend = monthlyReports
     .slice(0, 7)
     .reverse()
-    .map((report) => ({
+    .map((report: DailyReport) => ({
       label: new Date(report.date).toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
@@ -201,7 +223,7 @@ export default async function DashboardPage() {
     ? Math.round((winRate / totalQuotations) * 100)
     : 0;
 
-  const recentReports = allReports.map((report) => ({
+  const recentReports = allReports.map((report: DailyReportRecord) => ({
     id: report.id,
     date: report.date.toISOString(),
     salesRevenue: report.salesRevenue,
@@ -226,8 +248,8 @@ export default async function DashboardPage() {
   }));
 
   return (
-    <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <div className="mx-auto max-w-7xl">
+    <main className="h-screen overflow-hidden bg-slate-50 px-8 pb-8 pt-0 text-slate-900">
+      <div className="mx-auto h-full max-w-7xl">
         <SalesShell
           userName={session.user.name}
           todayReported={todaysReport?.status === "Submitted"}

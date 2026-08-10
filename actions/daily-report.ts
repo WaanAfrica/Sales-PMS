@@ -3,8 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
-import { requireAuth, requireRole } from '@/lib/auth';
+import { prisma } from '../lib/prisma';
+import { requireAuth, requireRole } from '../lib/auth';
 
 const dailyReportSchema = z.object({
   date: z.string().min(1),
