@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Menu, Search, UserCircle2 } from "lucide-react";
+import { Bell, Eye, EyeOff, Menu, Search, UserCircle2 } from "lucide-react";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useEffect } from "react";
 import * as XLSX from "xlsx";
@@ -10,6 +10,7 @@ import DashboardOverview from "./DashboardOverview";
 import DashboardChart from "./DashboardChart";
 import DashboardTable from "./DashboardTable";
 import AdminSidebar from "./AdminSidebar";
+import CompanyValuesSection from "@/components/CompanyValuesSection";
 
 type SummaryCard = {
   title: string;
@@ -92,6 +93,7 @@ const sections = [
   "Users",
   "Targets",
   "Reports",
+  "Company Values",
   "Profile",
   "Settings",
 ] as const;
@@ -124,6 +126,7 @@ export default function AdminShell({
     role: "SALES",
     active: true,
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [targetForm, setTargetForm] = useState({
     userId: users[0]?.id ?? "",
     month: new Date().getMonth() + 1,
@@ -875,7 +878,7 @@ export default function AdminShell({
                             name: event.target.value,
                           }))
                         }
-                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none shadow-sm transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                       />
                     </label>
                     <label className="block text-sm text-slate-700">
@@ -889,22 +892,36 @@ export default function AdminShell({
                             email: event.target.value,
                           }))
                         }
-                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none shadow-sm transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                       />
                     </label>
                     <label className="block text-sm text-slate-700">
                       Password
-                      <input
-                        type="password"
-                        value={userForm.password}
-                        onChange={(event) =>
-                          setUserForm((current) => ({
-                            ...current,
-                            password: event.target.value,
-                          }))
-                        }
-                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-                      />
+                      <div className="relative mt-2">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={userForm.password}
+                          onChange={(event) =>
+                            setUserForm((current) => ({
+                              ...current,
+                              password: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-950 outline-none shadow-sm transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((current) => !current)}
+                          className="absolute inset-y-0 right-3 flex items-center rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </label>
                     <button
                       type="submit"
@@ -1140,8 +1157,8 @@ export default function AdminShell({
                   </button>
                 </div>
               </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <label className="space-y-2 text-sm text-slate-700">
+              <div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                <label className="space-y-2 text-sm text-slate-700 min-w-0">
                   <span>Report type</span>
                   <select
                     value={reportType}
@@ -1232,9 +1249,9 @@ export default function AdminShell({
                     calculated team totals for the selected period.
                   </p>
                 </div>
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-3xl bg-slate-50 p-4">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm min-w-0">
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-3xl bg-slate-50 p-4 min-w-0">
                       <p className="text-sm text-slate-500">Active personnel</p>
                       <p className="mt-3 text-3xl font-semibold text-slate-900">
                         {reportSummary?.activePersonnel ??
@@ -1243,19 +1260,19 @@ export default function AdminShell({
                           ).length}
                       </p>
                     </div>
-                    <div className="rounded-3xl bg-slate-50 p-4">
+                    <div className="rounded-3xl bg-slate-50 p-4 min-w-0">
                       <p className="text-sm text-slate-500">Submitted</p>
                       <p className="mt-3 text-3xl font-semibold text-slate-900">
                         {reportSummary?.submitted ?? 0}
                       </p>
                     </div>
-                    <div className="rounded-3xl bg-slate-50 p-4">
+                    <div className="rounded-3xl bg-slate-50 p-4 min-w-0">
                       <p className="text-sm text-slate-500">Pending</p>
                       <p className="mt-3 text-3xl font-semibold text-slate-900">
                         {reportSummary?.pending ?? 0}
                       </p>
                     </div>
-                    <div className="rounded-3xl bg-slate-50 p-4">
+                    <div className="rounded-3xl bg-slate-50 p-4 min-w-0">
                       <p className="text-sm text-slate-500">Drafts</p>
                       <p className="mt-3 text-3xl font-semibold text-slate-900">
                         {reportSummary?.drafts ?? 0}
@@ -1275,22 +1292,22 @@ export default function AdminShell({
                     </h2>
                   </div>
                 </div>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-3xl bg-slate-50 p-4">
+                <div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
+                  <div className="rounded-3xl bg-slate-50 p-4 min-w-0">
                     <p className="text-sm text-slate-500">Target</p>
                     <p className="mt-3 text-xl font-semibold text-slate-900">
                       KES{" "}
                       {reportSummary?.teamTotals.target.toLocaleString() ?? "0"}
                     </p>
                   </div>
-                  <div className="rounded-3xl bg-slate-50 p-4">
+                  <div className="rounded-3xl bg-slate-50 p-4 min-w-0">
                     <p className="text-sm text-slate-500">Actual</p>
                     <p className="mt-3 text-xl font-semibold text-slate-900">
                       KES{" "}
                       {reportSummary?.teamTotals.actual.toLocaleString() ?? "0"}
                     </p>
                   </div>
-                  <div className="rounded-3xl bg-slate-50 p-4">
+                  <div className="rounded-3xl bg-slate-50 p-4 min-w-0">
                     <p className="text-sm text-slate-500">Variance</p>
                     <p className="mt-3 text-xl font-semibold text-slate-900">
                       KES{" "}
@@ -1298,7 +1315,7 @@ export default function AdminShell({
                         "0"}
                     </p>
                   </div>
-                  <div className="rounded-3xl bg-slate-50 p-4">
+                  <div className="rounded-3xl bg-slate-50 p-4 min-w-0">
                     <p className="text-sm text-slate-500">Win rate</p>
                     <p className="mt-3 text-xl font-semibold text-slate-900">
                       {reportSummary?.teamTotals.winRate ?? "N/A"}
@@ -1443,6 +1460,8 @@ export default function AdminShell({
             </section>
           </div>
         );
+      case "Company Values":
+        return <CompanyValuesSection />;
       case "Profile":
         return (
           <div className="space-y-6">
@@ -1532,68 +1551,72 @@ export default function AdminShell({
     users,
     reports,
     targets,
+    userForm,
+    targetForm,
+    actionMessage,
+    showPassword,
   ]);
 
   return (
-    <div className="relative min-h-screen bg-[#F8FAFC]">
-      <div className="md:grid md:grid-cols-[auto_1fr] md:gap-8">
-        <AdminSidebar
-          activeSection={activeSection}
-          onSectionChange={setActiveSection}
-          open={sidebarOpen}
-          collapsed={sidebarCollapsed}
-          onCollapseToggle={() => setSidebarCollapsed((prev) => !prev)}
-          onClose={() => setSidebarOpen(false)}
-        />
-        <main className="min-h-screen pt-18">
-          <div className="fixed inset-x-0 top-0 z-30 h-18 border-b border-[#E5E7EB] bg-white/95 backdrop-blur-sm">
-            <div className="mx-auto flex h-full max-w-360 items-center justify-between px-8">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-slate-700 shadow-sm lg:hidden"
-                  aria-label="Open navigation"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
+    <div className="flex h-screen overflow-hidden">
+      <AdminSidebar
+        sidebarOpen={sidebarOpen}
+        sidebarCollapsed={sidebarCollapsed}
+        onCollapseToggle={() => setSidebarCollapsed((prev) => !prev)}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <main className={`${sidebarWidthClass} h-screen overflow-hidden`}>
+        <div className="flex h-full flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <section className="sticky top-0 z-10 border-b border-slate-200/70 bg-linear-to-r from-slate-50 via-slate-50 to-white px-4 py-2 shadow-sm backdrop-blur-sm sm:px-6 lg:px-8">
+              <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.32em] text-blue-600">
+                  <p className="text-xs font-semibold uppercase tracking-[0.32em] text-blue-600">
                     Admin
                   </p>
-                  <h1 className="text-3xl font-semibold text-slate-950">
+                  <h1 className="mt-1 text-2xl font-semibold text-slate-950">
                     {activeSection}
                   </h1>
                 </div>
-              </div>
-              <div className="flex flex-1 items-center justify-end gap-3">
-                <div className="relative hidden w-full max-w-90 md:block">
-                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
-                  <input
-                    type="search"
-                    placeholder="Search admin"
-                    className="w-full rounded-full border border-[#E5E7EB] bg-white px-4 py-3 pl-11 text-sm text-[#111827] shadow-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <button className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
-                      3
-                    </span>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarOpen(true)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-slate-700 shadow-sm lg:hidden"
+                    aria-label="Open navigation"
+                  >
+                    <Menu className="h-5 w-5" />
                   </button>
-                  <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100">
-                    <UserCircle2 className="h-5 w-5 text-blue-600" />
-                    <span className="hidden sm:inline">Admin</span>
-                  </button>
+                  <div className="relative hidden w-full max-w-md md:block">
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+                    <input
+                      type="search"
+                      placeholder="Search admin"
+                      className="w-full rounded-full border border-[#E5E7EB] bg-white px-4 py-3 pl-11 text-sm text-[#111827] shadow-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100">
+                      <Bell className="h-5 w-5" />
+                      <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-semibold text-white">
+                        3
+                      </span>
+                    </button>
+                    <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-100">
+                      <UserCircle2 className="h-5 w-5 text-blue-600" />
+                      <span className="hidden sm:inline">Admin</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+            </section>
+
+            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+              {sectionContent}
             </div>
           </div>
-
-          <div className="mx-auto max-w-360 px-8 py-8">{sectionContent}</div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
