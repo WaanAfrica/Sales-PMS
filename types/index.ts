@@ -11,7 +11,7 @@ export interface UserRecord {
 export interface DailySalesRecord {
   id: string;
   userId: string;
-  date: string;
+  date: string | Date;
   salesRevenue: number;
   repeatCustomers: number;
   newCustomers: number;
@@ -24,6 +24,9 @@ export interface DailySalesRecord {
   accountsReceivable: number;
   opportunities?: string | null;
   challenges?: string | null;
+  status: "PENDING" | "DRAFT" | "SUBMITTED";
+  submittedAt: Date | null;
+  updatedAt: Date;
 }
 
 export interface MonthlyTargetRecord {

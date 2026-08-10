@@ -17,6 +17,7 @@ type DailyReport = {
   accountsReceivable: number;
   opportunities: string | null;
   challenges: string | null;
+  status: "PENDING" | "DRAFT" | "SUBMITTED";
 };
 
 export default async function DashboardPage() {
@@ -73,6 +74,7 @@ export default async function DashboardPage() {
     accountsReceivable: report.accountsReceivable,
     opportunities: report.opportunities,
     challenges: report.challenges,
+    status: report.status,
   }));
 
   const todaysReport = normalizedReports
@@ -210,7 +212,12 @@ export default async function DashboardPage() {
     accountsReceivable: report.accountsReceivable,
     opportunities: report.opportunities,
     challenges: report.challenges,
-    status: report.closedQuotations > 0 ? "Submitted" : "Pending",
+    status:
+      report.status === "SUBMITTED"
+        ? "Submitted"
+        : report.status === "DRAFT"
+          ? "Draft"
+          : "Pending",
   }));
 
   return (

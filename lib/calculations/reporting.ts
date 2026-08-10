@@ -154,26 +154,27 @@ export function calculateStatus(
 }
 
 export function calculateTeamTotals(rows: SalespersonReportRow[]) {
-  const actual = rows.reduce((sum, row) => sum + row.revenueSummary.actual, 0);
-  const target = rows.reduce(
+  const submittedRows = rows.filter((row) => row.status === "Submitted");
+  const actual = submittedRows.reduce((sum, row) => sum + row.revenueSummary.actual, 0);
+  const target = submittedRows.reduce(
     (sum, row) => sum + (row.target?.salesRevenueTarget ?? 0),
     0,
   );
   const variance = calculateVariance(actual, target);
-  const customers = rows.reduce(
+  const customers = submittedRows.reduce(
     (sum, row) => sum + row.customerSummary.monthlyAcquisition,
     0,
   );
-  const quotations = rows.reduce(
+  const quotations = submittedRows.reduce(
     (sum, row) =>
       sum + row.quotationSummary.new + row.quotationSummary.cumulative,
     0,
   );
-  const pipeline = rows.reduce((sum, row) => sum + row.salesPipelineValue, 0);
-  const receivables = rows.reduce((sum, row) => sum + row.accountReceivable, 0);
+  const pipeline = submittedRows.reduce((sum, row) => sum + row.salesPipelineValue, 0);
+  const receivables = submittedRows.reduce((sum, row) => sum + row.accountReceivable, 0);
   const winRate = calculateWinRate(
-    rows.reduce((sum, row) => sum + (row.report?.closedQuotations ?? 0), 0),
-    rows.reduce((sum, row) => sum + (row.report?.newQuotations ?? 0), 0),
+    submittedRows.reduce((sum, row) => sum + (row.report?.closedQuotations ?? 0), 0),
+    submittedRows.reduce((sum, row) => sum + (row.report?.newQuotations ?? 0), 0),
   );
 
   return {
@@ -293,36 +294,37 @@ export function calculateMonthlyReportModel(params: {
     const userReports = params.reports.filter(
       (report) => report.userId === user.id,
     );
+    const submittedReports = userReports.filter((report) => report.status === "SUBMITTED");
     const target = params.targets.find((item) => item.userId === user.id);
-    const actualRevenue = userReports.reduce(
+    const actualRevenue = submittedReports.reduce(
       (sum, report) => sum + report.salesRevenue,
       0,
     );
-    const actualCustomers = userReports.reduce(
+    const actualCustomers = submittedReports.reduce(
       (sum, report) =>
         sum + report.repeatCustomers + report.newCustomers + report.walkIns,
       0,
     );
-    const newQuotations = userReports.reduce(
+    const newQuotations = submittedReports.reduce(
       (sum, report) => sum + report.newQuotations,
       0,
     );
-    const closedQuotations = userReports.reduce(
+    const closedQuotations = submittedReports.reduce(
       (sum, report) => sum + report.closedQuotations,
       0,
     );
-    const averageAge = userReports.length
+    const averageAge = submittedReports.length
       ? Math.round(
-          userReports.reduce((sum, report) => sum + report.quotationAge, 0) /
-            userReports.length,
+          submittedReports.reduce((sum, report) => sum + report.quotationAge, 0) /
+            submittedReports.length,
         )
       : 0;
     const latestPipelineValue =
-      getLatestReport(userReports)?.salesPipelineValue ?? 0;
+      getLatestReport(submittedReports)?.salesPipelineValue ?? 0;
     const latestHotQuotationValue =
-      getLatestReport(userReports)?.hotQuotationValue ?? 0;
+      getLatestReport(submittedReports)?.hotQuotationValue ?? 0;
     const latestAccountsReceivable =
-      getLatestReport(userReports)?.accountsReceivable ?? 0;
+      getLatestReport(submittedReports)?.accountsReceivable ?? 0;
     const variance = calculateVariance(
       actualRevenue,
       target?.salesRevenueTarget ?? 0,
@@ -336,8 +338,8 @@ export function calculateMonthlyReportModel(params: {
     return {
       userId: user.id,
       name: user.name,
-      status: userReports.length > 0 ? "Submitted" : "Not Submitted",
-      reportCount: userReports.length,
+      status: submittedReports.length > 0 ? "Submitted" : userReports.length > 0 ? "Draft" : "Not Submitted",
+      reportCount: submittedReports.length,
       target,
       revenueSummary: {
         target: target?.salesRevenueTarget ?? 0,
@@ -347,12 +349,12 @@ export function calculateMonthlyReportModel(params: {
         achievement,
       },
       customerSummary: {
-        repeat: userReports.reduce(
+        repeat: submittedReports.reduce(
           (sum, report) => sum + report.repeatCustomers,
           0,
         ),
-        new: userReports.reduce((sum, report) => sum + report.newCustomers, 0),
-        walkIns: userReports.reduce((sum, report) => sum + report.walkIns, 0),
+        new: submittedReports.reduce((sum, report) => sum + report.newCustomers, 0),
+        walkIns: submittedReports.reduce((sum, report) => sum + report.walkIns, 0),
         monthlyAcquisition: actualCustomers,
       },
       quotationSummary: {
@@ -374,7 +376,7 @@ export function calculateMonthlyReportModel(params: {
     };
   });
 
-  const teamTotals = {
+  const teamTotals: MonthlyReportModel["teamTotals"] = {
     target: rows.reduce(
       (sum, row) => sum + (row.target?.salesRevenueTarget ?? 0),
       0,
@@ -384,7 +386,7 @@ export function calculateMonthlyReportModel(params: {
       (sum, row) => sum + row.revenueSummary.varianceAmount,
       0,
     ),
-    variancePercentage: "N/A" as const,
+    variancePercentage: "N/A",
     customers: rows.reduce(
       (sum, row) => sum + row.customerSummary.monthlyAcquisition,
       0,

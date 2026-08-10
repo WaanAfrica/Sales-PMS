@@ -90,6 +90,7 @@ export async function GET(request: Request) {
     const previousReport = await prisma.dailySales.findFirst({
       where: {
         userId: user.id,
+        status: "SUBMITTED",
         date: { lt: startOfDay },
       },
       orderBy: { date: "desc" },

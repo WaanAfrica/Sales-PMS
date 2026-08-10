@@ -57,7 +57,7 @@ const sections = [
   "Dashboard",
   "Daily Report",
   "My Reports",
-  "Performance",
+  "My Performance",
   "Profile",
 ] as const;
 
@@ -340,7 +340,7 @@ export default function SalesShell({
             </section>
           </div>
         );
-      case "Performance":
+      case "My Performance":
         return (
           <div className="space-y-6">
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
