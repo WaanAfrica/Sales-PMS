@@ -20,6 +20,7 @@ type SalesSidebarSection =
   | "Daily Report"
   | "My Reports"
   | "My Performance"
+  | "Company Values"
   | "Profile";
 
 const navItems: Array<{
@@ -32,7 +33,7 @@ const navItems: Array<{
   { title: "Daily Report", icon: FileText, section: "Daily Report" },
   { title: "My Reports", icon: ListChecks, section: "My Reports" },
   { title: "My Performance", icon: BarChart3, section: "My Performance" },
-  { title: "Company Values", icon: BookOpen, href: "/company-values" },
+  { title: "Company Values", icon: BookOpen, section: "Company Values" },
   { title: "Profile", icon: User, section: "Profile" },
 ];
 
@@ -78,7 +79,7 @@ export default function SalesSidebar({
           className="absolute inset-0 bg-slate-950/60"
           onClick={closeSidebar}
         />
-        <div className="absolute left-0 top-0 flex h-full w-70 flex-col rounded-r-3xl border-r border-slate-800 bg-[#0f172a] p-6 shadow-2xl">
+        <div className="absolute left-0 top-0 flex h-full w-72 flex-col rounded-r-3xl border-r border-slate-800 bg-[#0f172a] p-6 shadow-2xl">
           <div className="flex items-center justify-between gap-3 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500 text-white">
@@ -99,7 +100,7 @@ export default function SalesSidebar({
               <X className="h-4 w-4" />
             </button>
           </div>
-          <nav className="space-y-2">
+          <nav className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isRoute = Boolean(item.href);
@@ -112,7 +113,7 @@ export default function SalesSidebar({
                   key={item.title}
                   href={item.href}
                   onClick={closeSidebar}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
+                  className={`flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-left text-sm font-medium transition ${
                     isActive
                       ? "bg-blue-500 text-white"
                       : "text-slate-200 hover:bg-slate-900 hover:text-white"
@@ -131,7 +132,7 @@ export default function SalesSidebar({
                     onSectionChange(item.section!);
                     onClose?.();
                   }}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
+                  className={`flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-left text-sm font-medium transition ${
                     isActive
                       ? "bg-blue-500 text-white"
                       : "text-slate-200 hover:bg-slate-900 hover:text-white"
@@ -145,16 +146,7 @@ export default function SalesSidebar({
               );
             })}
           </nav>
-          <div className="mt-auto space-y-3 rounded-3xl bg-slate-900 p-5 text-sm text-slate-100">
-            <div className="flex items-center gap-3 rounded-2xl bg-slate-800 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500">
-                C
-              </div>
-              <div>
-                <p className="font-semibold text-white">Collins</p>
-                <p className="text-xs text-slate-400">Salesperson</p>
-              </div>
-            </div>
+          <div className="mt-auto rounded-3xl bg-slate-900 p-5 text-sm text-slate-100">
             <button
               type="button"
               onClick={() => signOut()}
@@ -168,10 +160,10 @@ export default function SalesSidebar({
       </aside>
 
       <aside
-        className={`hidden md:flex shrink-0 flex-col rounded-[28px] border border-slate-800 bg-[#0f172a] p-6 text-slate-100 shadow-sm ${collapsed ? "md:w-20 lg:w-70" : "md:w-70"}`}
+        className={`hidden md:flex fixed inset-0 top-0 left-0 z-20 flex-col ${collapsed ? "w-20" : "w-72"} bg-[#0f172a] text-slate-100 h-screen`}
       >
-        <div className="sticky top-6 flex h-[calc(100vh-48px)] flex-col justify-between rounded-[28px] border border-slate-800 bg-[#0f172a] p-6 shadow-sm text-slate-100">
-          <div className="space-y-8">
+        <div className="flex h-full min-h-0 flex-col p-6">
+          <div>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500 text-white">
                 S
@@ -183,7 +175,7 @@ export default function SalesSidebar({
                 <p className="text-lg font-semibold text-white">Sales panel</p>
               </div>
             </div>
-            <nav className="space-y-2">
+            <nav className="mt-8 flex-1 min-h-0 overflow-y-auto pr-1 space-y-1.5">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isRoute = Boolean(item.href);
@@ -195,7 +187,7 @@ export default function SalesSidebar({
                     key={item.title}
                     href={item.href}
                     onClick={onClose}
-                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
+                    className={`flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-left text-sm font-medium transition ${
                       isActive
                         ? "bg-blue-500 text-white shadow-lg"
                         : "text-slate-200 hover:bg-blue-600/10 hover:text-white"
@@ -209,7 +201,7 @@ export default function SalesSidebar({
                     key={item.title}
                     type="button"
                     onClick={() => onSectionChange(item.section!)}
-                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
+                    className={`flex w-full items-center gap-2 rounded-2xl px-3 py-3 text-left text-sm font-medium transition ${
                       isActive
                         ? "bg-blue-500 text-white shadow-lg"
                         : "text-slate-200 hover:bg-blue-600/10 hover:text-white"
@@ -222,16 +214,7 @@ export default function SalesSidebar({
               })}
             </nav>
           </div>
-          <div className="space-y-3 rounded-3xl bg-slate-900 p-5 text-sm">
-            <div className="flex items-center gap-3 rounded-2xl bg-slate-800 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500">
-                C
-              </div>
-              <div className={`${collapsed ? "hidden" : "block"}`}>
-                <p className="font-semibold text-white">{userName}</p>
-                <p className="text-xs text-slate-400">Salesperson</p>
-              </div>
-            </div>
+          <div className="space-y-3 bg-slate-900 p-5 text-sm">
             <div className="hidden md:flex lg:hidden items-center gap-2">
               <button
                 type="button"
