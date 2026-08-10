@@ -1,38 +1,37 @@
+import Image from "next/image";
 import LoginForm from "@/components/auth/LoginForm";
 
 export default function LoginPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 lg:grid-cols-2">
-        <section className="flex flex-col justify-center gap-8 bg-gradient-to-b from-blue-700 via-slate-900 to-slate-950 px-8 py-16 text-white lg:px-16">
-          <div className="max-w-xl space-y-6">
+        <section className="relative flex flex-col justify-center gap-8 overflow-hidden bg-linear-to-b from-blue-700 via-slate-900 to-slate-950 px-8 py-16 text-white lg:px-16">
+          <div className="absolute inset-x-0 top-0 h-40 bg-radial-[at_top_left] from-sky-400/20 to-transparent to-30%" />
+          <div className="absolute inset-x-0 bottom-0 h-48 bg-radial-[at_bottom_right] from-blue-500/20 to-transparent to-30%" />
+          <div className="relative z-10 max-w-xl space-y-6">
             <div className="inline-flex items-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.32em] text-sky-200 shadow-sm shadow-slate-900/10">
               Sales Performance Management
             </div>
             <div className="space-y-4">
-              <h1 className="text-4xl font-semibold tracking-tight">
-                Monitor. Measure. Grow.
+              <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                Together We CREATE IT, Together We Win.
               </h1>
               <p className="max-w-lg text-slate-200/90 text-lg leading-8">
-                Enterprise-grade sales analytics for your team, built to help
-                your company move faster with clear daily reporting, performance
-                insights, and target tracking.
+                Experience a secure and polished login built to reflect the same
+                corporate identity that guides daily sales work in your
+                organization.
               </p>
             </div>
-            <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-950/20">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-300">
-                  Trusted by
-                </p>
-                <p className="mt-3 text-2xl font-semibold">
-                  Your internal sales operations team
-                </p>
-              </div>
-              <div className="grid gap-1 text-slate-300 text-sm">
-                <p>• Modern sales dashboards</p>
-                <p>• Daily report automation</p>
-                <p>• Role-based access control</p>
-              </div>
+          </div>
+          <div className="relative z-10 rounded-4xl border border-white/10 bg-white/10 p-4 shadow-2xl shadow-slate-950/20 sm:p-6">
+            <div className="relative aspect-4/3 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950 p-3">
+              <Image
+                src="/assets/company/company-values.jpeg"
+                alt="Company values poster"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-contain"
+              />
             </div>
           </div>
         </section>
@@ -44,10 +43,11 @@ export default function LoginPage() {
                 Welcome back
               </p>
               <h2 className="text-3xl font-semibold text-slate-900">
-                Sign in to your account
+                Sign in to Sales PMS
               </h2>
               <p className="text-sm text-slate-500">
-                Enter your company email and password to continue.
+                Enter your company email and password to continue to your
+                dashboard.
               </p>
             </div>
             <div className="mt-8">

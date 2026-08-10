@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useRef } from "react";
 import { signOut } from "next-auth/react";
 import {
   BarChart3,
+  BookOpen,
   FileText,
   LayoutDashboard,
   ListChecks,
@@ -11,23 +13,27 @@ import {
   LogOut,
   X,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 type SalesSidebarSection =
   | "Dashboard"
   | "Daily Report"
   | "My Reports"
-  | "Performance"
+  | "My Performance"
   | "Profile";
 
 const navItems: Array<{
-  title: SalesSidebarSection;
+  title: string;
   icon: React.ComponentType<{ className?: string }>;
+  href?: string;
+  section?: SalesSidebarSection;
 }> = [
-  { title: "Dashboard", icon: LayoutDashboard },
-  { title: "Daily Report", icon: FileText },
-  { title: "My Reports", icon: ListChecks },
-  { title: "Performance", icon: BarChart3 },
-  { title: "Profile", icon: User },
+  { title: "Dashboard", icon: LayoutDashboard, section: "Dashboard" },
+  { title: "Daily Report", icon: FileText, section: "Daily Report" },
+  { title: "My Reports", icon: ListChecks, section: "My Reports" },
+  { title: "My Performance", icon: BarChart3, section: "My Performance" },
+  { title: "Company Values", icon: BookOpen, href: "/company-values" },
+  { title: "Profile", icon: User, section: "Profile" },
 ];
 
 export default function SalesSidebar({
@@ -48,6 +54,8 @@ export default function SalesSidebar({
   onClose?: () => void;
 }) {
   const sidebarRef = useRef<HTMLElement | null>(null);
+
+  const pathname = usePathname();
 
   const closeSidebar = useCallback(() => {
     if (
@@ -70,7 +78,7 @@ export default function SalesSidebar({
           className="absolute inset-0 bg-slate-950/60"
           onClick={closeSidebar}
         />
-        <div className="absolute left-0 top-0 flex h-full w-[280px] flex-col rounded-r-3xl border-r border-slate-800 bg-[#0f172a] p-6 shadow-2xl">
+        <div className="absolute left-0 top-0 flex h-full w-70 flex-col rounded-r-3xl border-r border-slate-800 bg-[#0f172a] p-6 shadow-2xl">
           <div className="flex items-center justify-between gap-3 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500 text-white">
@@ -94,13 +102,33 @@ export default function SalesSidebar({
           <nav className="space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.title === activeSection;
-              return (
+              const isRoute = Boolean(item.href);
+              const isActive = isRoute
+                ? pathname === item.href
+                : item.title === activeSection;
+
+              return item.href ? (
+                <Link
+                  key={item.title}
+                  href={item.href}
+                  onClick={closeSidebar}
+                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
+                    isActive
+                      ? "bg-blue-500 text-white"
+                      : "text-slate-200 hover:bg-slate-900 hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className={`${collapsed ? "hidden" : "block"}`}>
+                    {item.title}
+                  </span>
+                </Link>
+              ) : (
                 <button
                   key={item.title}
                   type="button"
                   onClick={() => {
-                    onSectionChange(item.title);
+                    onSectionChange(item.section!);
                     onClose?.();
                   }}
                   className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
@@ -140,7 +168,7 @@ export default function SalesSidebar({
       </aside>
 
       <aside
-        className={`hidden md:flex shrink-0 flex-col rounded-[28px] border border-slate-800 bg-[#0f172a] p-6 text-slate-100 shadow-sm ${collapsed ? "md:w-20 lg:w-[280px]" : "md:w-[280px]"}`}
+        className={`hidden md:flex shrink-0 flex-col rounded-[28px] border border-slate-800 bg-[#0f172a] p-6 text-slate-100 shadow-sm ${collapsed ? "md:w-20 lg:w-70" : "md:w-70"}`}
       >
         <div className="sticky top-6 flex h-[calc(100vh-48px)] flex-col justify-between rounded-[28px] border border-slate-800 bg-[#0f172a] p-6 shadow-sm text-slate-100">
           <div className="space-y-8">
@@ -158,12 +186,29 @@ export default function SalesSidebar({
             <nav className="space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = item.title === activeSection;
-                return (
+                const isRoute = Boolean(item.href);
+                const isActive = isRoute
+                  ? pathname === item.href
+                  : item.title === activeSection;
+                return item.href ? (
+                  <Link
+                    key={item.title}
+                    href={item.href}
+                    onClick={onClose}
+                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
+                      isActive
+                        ? "bg-blue-500 text-white shadow-lg"
+                        : "text-slate-200 hover:bg-blue-600/10 hover:text-white"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </Link>
+                ) : (
                   <button
                     key={item.title}
                     type="button"
-                    onClick={() => onSectionChange(item.title)}
+                    onClick={() => onSectionChange(item.section!)}
                     className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
                       isActive
                         ? "bg-blue-500 text-white shadow-lg"
