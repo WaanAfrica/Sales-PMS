@@ -20,8 +20,9 @@ A modern sales performance management system built with Next.js, Prisma, Postgre
 
 ## Default credentials
 
-- Administrator: `admin@company.com` / `Admin@123`
-- Sales Personnel: `collins@company.com` / `Sales@123`
+- Administrator: `Kobiakithinji16@gmail.com` / `Kobia@2026.`
+- Sales Personnel: `kobia@matrixwater.co.ke` / `Kobia@2026.`
+- Sales Personnel: `munene@matrixwater.co.ke` / `Munene@2026.`
 
 5. Start the app
    ```bash

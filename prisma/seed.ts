@@ -8,29 +8,38 @@ async function main() {
   await prisma.monthlyTarget.deleteMany();
   await prisma.user.deleteMany();
 
-  const adminPassword = await bcrypt.hash('Admin@123', 10);
-  await prisma.user.create({
-    data: {
-      name: 'Administrator',
-      email: 'admin@company.com',
-      password: adminPassword,
-      role: 'ADMIN',
-      active: true,
+  const users = [
+    {
+      name: 'Kobia Kithinji',
+      email: 'Kobiakithinji16@gmail.com',
+      password: 'Kobia@2026.',
+      role: 'ADMIN' as const,
     },
-  });
-
-  const salesPassword = await bcrypt.hash('Sales@123', 10);
-  await prisma.user.create({
-    data: {
-      name: 'Collins',
-      email: 'collins@company.com',
-      password: salesPassword,
-      role: 'SALES',
-      active: true,
+    {
+      name: 'Kobia',
+      email: 'kobia@matrixwater.co.ke',
+      password: 'Kobia@2026.',
+      role: 'SALES' as const,
     },
-  });
+    {
+      name: 'Munene',
+      email: 'munene@matrixwater.co.ke',
+      password: 'Munene@2026.',
+      role: 'SALES' as const,
+    },
+  ];
 
-  console.log('Seeded admin and one sales user');
+  for (const user of users) {
+    await prisma.user.create({
+      data: {
+        ...user,
+        password: await bcrypt.hash(user.password, 10),
+        active: true,
+      },
+    });
+  }
+
+  console.log('Database cleared and seeded with three users');
 }
 
 main()
