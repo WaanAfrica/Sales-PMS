@@ -25,7 +25,8 @@ const authOptions: NextAuthOptions = {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+        const email = parsed.data.email.trim().toLowerCase();
+        const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !user.active) return null;
 
         const valid = await bcrypt.compare(parsed.data.password, user.password);
