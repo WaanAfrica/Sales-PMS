@@ -65,14 +65,24 @@ export async function GET(request: Request) {
   const startOfDay = selectedDate;
   const endOfDay = new Date(startOfDay);
   endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+  const monthStart = utcMonthStart(
+    Number(reportDate.slice(0, 4)),
+    Number(reportDate.slice(5, 7)),
+  );
 
-  const [activeUsers, reports, targets] = await Promise.all([
+  const [activeUsers, reports, monthToDateReports, targets] = await Promise.all([
     prisma.user.findMany({
       where: { role: "SALES", active: true },
       orderBy: { name: "asc" },
     }),
     prisma.dailySales.findMany({
       where: { date: { gte: startOfDay, lt: endOfDay } },
+    }),
+    prisma.dailySales.findMany({
+      where: {
+        status: "SUBMITTED",
+        date: { gte: monthStart, lt: endOfDay },
+      },
     }),
     prisma.monthlyTarget.findMany({
       where: {
@@ -102,6 +112,7 @@ export async function GET(request: Request) {
     reportDate: selectedDate,
     activeUsers: activeUsers.map((user) => ({ id: user.id, name: user.name })),
     reports,
+    monthToDateReports,
     targets,
     previousReportsByUser,
   });

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { createDailyReport, updateDailyReport } from "../../actions/daily-report";
+import { calculateDailyAcquisition } from "../../lib/calculations/reporting";
 import { getEastAfricaDateKey } from "../../lib/dates";
 
 type DailyReportFormData = {
@@ -12,7 +13,6 @@ type DailyReportFormData = {
   walkIns: string;
   newQuotations: string;
   closedQuotations: string;
-  quotationAge: string;
   salesPipelineValue: string;
   hotQuotationValue: string;
   accountsReceivable: string;
@@ -29,7 +29,6 @@ type SalesReport = {
   walkIns: number;
   newQuotations: number;
   closedQuotations: number;
-  quotationAge: number;
   salesPipelineValue: number;
   hotQuotationValue: number;
   accountsReceivable: number;
@@ -58,7 +57,6 @@ export default function SalesDailyReportForm({
       walkIns: String(report?.walkIns ?? 0),
       newQuotations: String(report?.newQuotations ?? 0),
       closedQuotations: String(report?.closedQuotations ?? 0),
-      quotationAge: String(report?.quotationAge ?? 0),
       salesPipelineValue: String(report?.salesPipelineValue ?? 0),
       hotQuotationValue: String(report?.hotQuotationValue ?? 0),
       accountsReceivable: String(report?.accountsReceivable ?? 0),
@@ -80,7 +78,6 @@ export default function SalesDailyReportForm({
       "walkIns",
       "newQuotations",
       "closedQuotations",
-      "quotationAge",
       "salesPipelineValue",
       "hotQuotationValue",
       "accountsReceivable",
@@ -112,7 +109,6 @@ export default function SalesDailyReportForm({
               walkIns: Number(form.walkIns),
               newQuotations: Number(form.newQuotations),
               closedQuotations: Number(form.closedQuotations),
-              quotationAge: Number(form.quotationAge),
               hotQuotationValue: Number(form.hotQuotationValue),
               salesPipelineValue: Number(form.salesPipelineValue),
               accountsReceivable: Number(form.accountsReceivable),
@@ -136,7 +132,6 @@ export default function SalesDailyReportForm({
               walkIns: Number(form.walkIns),
               newQuotations: Number(form.newQuotations),
               closedQuotations: Number(form.closedQuotations),
-              quotationAge: Number(form.quotationAge),
               hotQuotationValue: Number(form.hotQuotationValue),
               salesPipelineValue: Number(form.salesPipelineValue),
               accountsReceivable: Number(form.accountsReceivable),
@@ -196,8 +191,8 @@ export default function SalesDailyReportForm({
       </div>
 
       <div className="grid gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-6">
-        <div className="space-y-3">
-          <p className="font-semibold text-slate-900">Daily Revenue</p>
+        <label className="space-y-3 text-sm text-slate-700">
+          <span className="block font-semibold text-slate-900">Daily Revenue</span>
           <input
             type="number"
             value={form.salesRevenue}
@@ -206,7 +201,7 @@ export default function SalesDailyReportForm({
             }
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
           />
-        </div>
+        </label>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -249,6 +244,21 @@ export default function SalesDailyReportForm({
         </label>
       </div>
 
+      <div className="flex items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4">
+        <div>
+          <p className="font-semibold text-slate-900">Daily Acquisition</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Calculated from new customers and walk-ins
+          </p>
+        </div>
+        <p className="text-2xl font-semibold text-blue-700" aria-live="polite">
+          {calculateDailyAcquisition(
+            Number(form.newCustomers),
+            Number(form.walkIns),
+          )}
+        </p>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-3">
         <label className="space-y-2 text-sm text-slate-700">
           <span>New Quotations</span>
@@ -268,22 +278,6 @@ export default function SalesDailyReportForm({
             value={form.closedQuotations}
             onChange={(event) =>
               handleChange("closedQuotations", event.target.value)
-            }
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-          />
-        </label>
-        <label className="space-y-2 text-sm text-slate-700">
-          <span>Avg. Open Quotation Age (Days)</span>
-          <span className="block text-xs text-slate-500">
-            Mean age of open quotations on this report date.
-          </span>
-          <input
-            type="number"
-            min={0}
-            step="any"
-            value={form.quotationAge}
-            onChange={(event) =>
-              handleChange("quotationAge", event.target.value)
             }
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />

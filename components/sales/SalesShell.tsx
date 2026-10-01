@@ -19,7 +19,6 @@ type SalesReportItem = {
   dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
-  quotationAge: number;
   hotQuotationValue: number;
   salesPipelineValue: number;
   accountsReceivable: number;
@@ -33,28 +32,50 @@ type SalesShellProps = {
   todayReported: boolean;
   todayRevenue: number;
   targetValue: number;
-  achievementPercent: number;
+  achievementPercent: number | string;
   todaySummary: {
     revenue: number;
+    salesRevenueMtd: number;
+    target: number;
+    varianceAmount: number;
+    variancePercentage: number | string;
+    previousDay: number | string;
+    changeAgainstPreviousDay: number | string;
     customers: number;
+    repeatCustomers: number;
+    newCustomers: number;
+    walkIns: number;
     dailyAcquisition: number;
+    monthlyAcquisition: number;
     quotations: number;
+    newQuotations: number;
+    cumulativeQuotations: number;
+    averageQuotationAge: number | string;
+    winRate: string | number;
     pipeline: number;
+    hotQuotationValue: number;
     receivables: number;
   };
   monthlySummary: {
     revenue: number;
+    target: number;
+    varianceAmount: number;
+    variancePercentage: number | string;
     customers: number;
     dailyAcquisition: number;
+    monthlyAcquisition: number;
     quotations: number;
+    averageQuotationAge: number | string;
+    winRate: string | number;
     pipeline: number;
+    hotQuotationValue: number;
     receivables: number;
   };
   recentReports: SalesReportItem[];
   revenueTrend: Array<{ label: string; value: number }>;
   pipelineTrend: Array<{ label: string; value: number }>;
-  monthlyWinRate: number;
-  customerGrowthPercent: number;
+  monthlyWinRate: string | number;
+  customerGrowthPercent: string | number;
   todaysReport?: SalesReportItem;
 };
 
@@ -117,6 +138,8 @@ export default function SalesShell({
       }),
     [monthlySummary.pipeline],
   );
+  const achievementDisplay =
+    typeof achievementPercent === "number" ? `${achievementPercent}%` : "-";
 
   const sectionContent = useMemo(() => {
     switch (activeSection) {
@@ -131,7 +154,7 @@ export default function SalesShell({
                   subtitle: "Daily revenue",
                 },
                 {
-                  title: "Monthly revenue",
+                  title: "Sales Revenue (MTD)",
                   value: monthlySummary.revenue.toLocaleString("en-KE", {
                     style: "currency",
                     currency: "KES",
@@ -141,7 +164,7 @@ export default function SalesShell({
                 },
                 {
                   title: "Target progress",
-                  value: `${achievementPercent}%`,
+                  value: achievementDisplay,
                   subtitle: "Monthly goal achieved",
                 },
                 {
@@ -203,9 +226,9 @@ export default function SalesShell({
                   </p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Customers</p>
+                  <p className="text-sm text-slate-500">Repeat / New / Walk-ins</p>
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
-                    {todaySummary.customers}
+                    {todaySummary.repeatCustomers} / {todaySummary.newCustomers} / {todaySummary.walkIns}
                   </p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 p-5">
@@ -214,17 +237,40 @@ export default function SalesShell({
                     {todaySummary.dailyAcquisition}
                   </p>
                 </div>
-                `n{" "}
                 <div className="rounded-3xl bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Quotations</p>
+                  <p className="text-sm text-slate-500">Monthly acquisition</p>
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
-                    {todaySummary.quotations}
+                    {todaySummary.monthlyAcquisition}
                   </p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Pipeline</p>
+                  <p className="text-sm text-slate-500">Quotations (New / Cumulative)</p>
+                  <p className="mt-3 text-2xl font-semibold text-slate-900">
+                    {todaySummary.newQuotations} / {todaySummary.cumulativeQuotations}
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-slate-50 p-5">
+                  <p className="text-sm text-slate-500">Win Rate</p>
+                  <p className="mt-3 text-2xl font-semibold text-slate-900">
+                    {todaySummary.winRate}
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-slate-50 p-5">
+                  <p className="text-sm text-slate-500">Hot Quotations Value</p>
+                  <p className="mt-3 text-2xl font-semibold text-slate-900">
+                    {todaySummary.hotQuotationValue.toLocaleString("en-KE")}
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-slate-50 p-5">
+                  <p className="text-sm text-slate-500">Sales Pipeline Value</p>
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
                     {todaySummary.pipeline.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-slate-50 p-5">
+                  <p className="text-sm text-slate-500">Account Receivable</p>
+                  <p className="mt-3 text-2xl font-semibold text-slate-900">
+                    {todaySummary.receivables.toLocaleString("en-KE")}
                   </p>
                 </div>
               </div>
@@ -360,7 +406,7 @@ export default function SalesShell({
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
-                    Monthly revenue
+                    Sales Revenue (MTD)
                   </p>
                   <p className="mt-3 text-4xl font-semibold text-slate-900">
                     {monthlySummary.revenue.toLocaleString("en-KE", {
@@ -377,11 +423,19 @@ export default function SalesShell({
                   <div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-200">
                     <div
                       className="h-full rounded-full bg-blue-600"
-                      style={{ width: `${achievementPercent}%` }}
+                      style={{
+                        width:
+                          typeof achievementPercent === "number"
+                            ? `${achievementPercent}%`
+                            : "0%",
+                      }}
                     />
                   </div>
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
-                    {achievementPercent}%
+                    {achievementDisplay}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Monthly target: {formattedTarget}
                   </p>
                 </div>
               </div>
@@ -392,7 +446,9 @@ export default function SalesShell({
                   Customer growth
                 </p>
                 <p className="mt-3 text-3xl font-semibold text-slate-900">
-                  {customerGrowthPercent}%
+                  {typeof customerGrowthPercent === "number"
+                    ? `${customerGrowthPercent}%`
+                    : customerGrowthPercent}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
                   Compared to last month
@@ -403,7 +459,9 @@ export default function SalesShell({
                   Win rate
                 </p>
                 <p className="mt-3 text-3xl font-semibold text-slate-900">
-                  {monthlyWinRate}%
+                  {typeof monthlyWinRate === "number"
+                    ? `${monthlyWinRate}%`
+                    : monthlyWinRate}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
                   Quotation close ratio
@@ -422,6 +480,42 @@ export default function SalesShell({
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
                   Outstanding balance
+                </p>
+              </section>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                <p className="text-sm text-slate-500">Variance (MTD)</p>
+                <p className="mt-3 text-xl font-semibold text-slate-900">
+                  KES {monthlySummary.varianceAmount.toLocaleString("en-KE")}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {monthlySummary.variancePercentage === "-"
+                    ? "-"
+                    : `${monthlySummary.variancePercentage}%`}
+                </p>
+              </section>
+              <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                <p className="text-sm text-slate-500">Previous Day Revenue</p>
+                <p className="mt-3 text-xl font-semibold text-slate-900">
+                  {typeof todaySummary.previousDay === "number"
+                    ? `KES ${todaySummary.previousDay.toLocaleString("en-KE")}`
+                    : todaySummary.previousDay}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Change: {todaySummary.changeAgainstPreviousDay}
+                </p>
+              </section>
+              <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                <p className="text-sm text-slate-500">Average Quotation Age</p>
+                <p className="mt-3 text-xl font-semibold text-slate-900">
+                  {todaySummary.averageQuotationAge}
+                </p>
+              </section>
+              <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                <p className="text-sm text-slate-500">Monthly Acquisition</p>
+                <p className="mt-3 text-xl font-semibold text-slate-900">
+                  {monthlySummary.monthlyAcquisition}
                 </p>
               </section>
             </div>

@@ -1,6 +1,11 @@
 import { prisma } from "../../lib/prisma";
 import { requireRole } from "../../lib/auth";
 import {
+  calculateAchievementPercent,
+  calculateChangeAgainstPreviousDay,
+  calculateMonthlyReportModel,
+} from "../../lib/calculations/reporting";
+import {
   formatDateInEastAfrica,
   getEastAfricaDateKey,
   utcMonthStart,
@@ -62,64 +67,53 @@ export default async function AdminPage() {
       }),
     ]);
 
-  const totalRevenue = monthlyReports.reduce(
-    (sum, item) => sum + item.salesRevenue,
-    0,
-  );
-  const totalPipeline = monthlyReports.reduce(
-    (sum, item) => sum + item.salesPipelineValue,
-    0,
-  );
-  const totalReceivables = monthlyReports.reduce(
-    (sum, item) => sum + item.accountsReceivable,
-    0,
-  );
-  const totalCustomers = monthlyReports.reduce(
-    (sum, item) =>
-      sum + item.repeatCustomers + item.newCustomers + item.walkIns,
-    0,
-  );
-  const totalQuotes = monthlyReports.reduce(
-    (sum, item) => sum + item.newQuotations,
-    0,
-  );
-  const closedQuotes = monthlyReports.reduce(
-    (sum, item) => sum + item.closedQuotations,
-    0,
-  );
-  const winRate = totalQuotes
-    ? Math.round((closedQuotes / totalQuotes) * 100)
-    : 0;
+  const activeSalespeople = users
+    .filter((user) => user.role === "SALES" && user.active)
+    .map((user) => ({ id: user.id, name: user.name }));
+  const previousMonthDate = new Date(Date.UTC(year, month - 2, 1));
+  const previousMonthModel = calculateMonthlyReportModel({
+    month: previousMonthDate.getUTCMonth() + 1,
+    year: previousMonthDate.getUTCFullYear(),
+    activeUsers: activeSalespeople,
+    reports: previousMonthReports,
+    targets: [],
+  });
+  const currentMonthModel = calculateMonthlyReportModel({
+    month,
+    year,
+    activeUsers: activeSalespeople,
+    reports: monthlyReports,
+    targets,
+  });
 
-  const salesByPersonnel = monthlyReports
-    .reduce(
-      (acc, item) => {
-        const existing = acc.find((person) => person.name === item.user.name);
-        if (existing) {
-          existing.revenue += item.salesRevenue;
-        } else {
-          acc.push({ name: item.user.name, revenue: item.salesRevenue });
-        }
-        return acc;
-      },
-      [] as Array<{ name: string; revenue: number }>,
-    )
-    .sort((a, b) => b.revenue - a.revenue);
-
-  const targetAchievement = targets.map((target) => {
-    const revenue =
-      salesByPersonnel.find((person) => person.name === target.user.name)
-        ?.revenue ?? 0;
-    return {
-      name: target.user.name,
-      achievement: target.salesRevenueTarget
-        ? Math.round((revenue / target.salesRevenueTarget) * 100)
-        : 0,
-    };
+  const totalRevenue = currentMonthModel.teamTotals.actual;
+  const totalPipeline = currentMonthModel.teamTotals.pipeline;
+  const totalReceivables = currentMonthModel.teamTotals.receivables;
+  const totalCustomers = currentMonthModel.teamTotals.customers;
+  const winRate = currentMonthModel.teamTotals.winRate;
+  const salesByPersonnel = currentMonthModel.rows
+    .map((row) => ({
+      name: row.name,
+      revenue: row.revenueSummary.actual,
+    }))
+    .sort((left, right) => right.revenue - left.revenue);
+  const targetAchievement = currentMonthModel.rows.flatMap((row) => {
+    if (!row.target) return [];
+    const achievement = calculateAchievementPercent(
+      row.revenueSummary.actual,
+      row.target.salesRevenueTarget,
+    );
+    return [{
+      name: row.name,
+      achievement: typeof achievement === "number" ? achievement : 0,
+    }];
   });
 
   const revenueByDate = new Map<string, number>();
-  [...monthlyReports].reverse().forEach((report) => {
+  [...monthlyReports]
+    .filter((report) => report.status === "SUBMITTED")
+    .reverse()
+    .forEach((report) => {
     const dateKey =
       report.date instanceof Date
         ? report.date.toISOString().slice(0, 10)
@@ -140,60 +134,37 @@ export default async function AdminPage() {
       revenue,
     }));
 
-  const previousRevenue = previousMonthReports.reduce(
-    (sum, item) => sum + item.salesRevenue,
-    0,
-  );
-  const previousCustomers = previousMonthReports.reduce(
-    (sum, item) =>
-      sum + item.repeatCustomers + item.newCustomers + item.walkIns,
-    0,
-  );
-  const previousPipeline = previousMonthReports.reduce(
-    (sum, item) => sum + item.salesPipelineValue,
-    0,
-  );
-  const previousReceivables = previousMonthReports.reduce(
-    (sum, item) => sum + item.accountsReceivable,
-    0,
-  );
-
-  const revenueTrendPercent = previousRevenue
-    ? Math.round(((totalRevenue - previousRevenue) / previousRevenue) * 100)
-    : 0;
-  const customerTrendPercent = previousCustomers
-    ? Math.round(
-        ((totalCustomers - previousCustomers) / previousCustomers) * 100,
-      )
-    : 0;
-  const pipelineTrendPercent = previousPipeline
-    ? Math.round(((totalPipeline - previousPipeline) / previousPipeline) * 100)
-    : 0;
-  const receivableTrendPercent = previousReceivables
-    ? Math.round(
-        ((totalReceivables - previousReceivables) / previousReceivables) * 100,
-      )
-    : 0;
+  const previousRevenue = previousMonthModel.teamTotals.actual;
+  const previousCustomers = previousMonthModel.teamTotals.customers;
+  const previousPipeline = previousMonthModel.teamTotals.pipeline;
+  const previousReceivables = previousMonthModel.teamTotals.receivables;
+  const trendLabel = (current: number, previous: number) => {
+    const change = calculateChangeAgainstPreviousDay(current, previous);
+    if (change === "-") return "New";
+    const percentage = Number.parseInt(change, 10);
+    return `${percentage > 0 ? "+" : ""}${change}`;
+  };
 
   const averageTargetAchievement = targetAchievement.length
     ? Math.round(
         targetAchievement.reduce((sum, item) => sum + item.achievement, 0) /
           targetAchievement.length,
       )
-    : 0;
+    : "-";
 
   const summaryCards = [
     {
       title: "Company revenue",
       value: formatKES(totalRevenue),
       subtitle: "Month-to-date total sales",
-      trend: previousRevenue
-        ? `${revenueTrendPercent > 0 ? "+" : ""}${revenueTrendPercent}%`
-        : "New",
+      trend: trendLabel(totalRevenue, previousRevenue),
     },
     {
       title: "Monthly target achievement",
-      value: `${averageTargetAchievement}%`,
+      value:
+        typeof averageTargetAchievement === "number"
+          ? `${averageTargetAchievement}%`
+          : averageTargetAchievement,
       subtitle: "Average team progress",
       trend: "Current month",
     },
@@ -201,29 +172,23 @@ export default async function AdminPage() {
       title: "Total customers",
       value: totalCustomers.toLocaleString(),
       subtitle: "Customers served this month",
-      trend: previousCustomers
-        ? `${customerTrendPercent > 0 ? "+" : ""}${customerTrendPercent}%`
-        : "New",
+      trend: trendLabel(totalCustomers, previousCustomers),
     },
     {
       title: "Pipeline value",
       value: formatKES(totalPipeline),
       subtitle: "Current sales pipeline",
-      trend: previousPipeline
-        ? `${pipelineTrendPercent > 0 ? "+" : ""}${pipelineTrendPercent}%`
-        : "New",
+      trend: trendLabel(totalPipeline, previousPipeline),
     },
     {
       title: "Accounts receivable",
       value: formatKES(totalReceivables),
       subtitle: "Outstanding customer balance",
-      trend: previousReceivables
-        ? `${receivableTrendPercent > 0 ? "+" : ""}${receivableTrendPercent}%`
-        : "New",
+      trend: trendLabel(totalReceivables, previousReceivables),
     },
     {
       title: "Win rate",
-      value: `${winRate}%`,
+      value: typeof winRate === "number" ? `${winRate}%` : winRate,
       subtitle: "Quote close rate",
       trend: "Current month",
     },

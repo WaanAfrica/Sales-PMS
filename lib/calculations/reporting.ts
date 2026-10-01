@@ -5,6 +5,7 @@ export type ReportStatus = "Pending" | "Draft" | "Submitted" | "Not Submitted";
 export type DailyReportSummary = {
   target: number;
   actual: number;
+  dailyRevenue: number;
   monthToDateRevenue: number;
   varianceAmount: number;
   variancePercentage: number | string;
@@ -23,7 +24,7 @@ export type CustomerSummary = {
 export type QuotationSummary = {
   new: number;
   cumulative: number;
-  averageAge: number;
+  averageAge: number | string;
 };
 
 export type SalespersonReportRow = {
@@ -60,6 +61,7 @@ export type DailyReportModel = {
     variancePercentage: number | string;
     customers: number;
     dailyAcquisition: number;
+    monthlyAcquisition: number;
     quotations: number;
     pipeline: number;
     receivables: number;
@@ -76,6 +78,7 @@ export type MonthlyReportRow = {
   revenueSummary: {
     target: number;
     actual: number;
+    monthToDateRevenue: number;
     varianceAmount: number;
     variancePercentage: number | string;
     achievement: string | number;
@@ -108,6 +111,7 @@ export type MonthlyReportModel = {
     variancePercentage: number | string;
     customers: number;
     dailyAcquisition: number;
+    monthlyAcquisition: number;
     quotations: number;
     pipeline: number;
     receivables: number;
@@ -117,20 +121,25 @@ export type MonthlyReportModel = {
 
 export function calculateVariance(actual: number, target: number) {
   const amount = actual - target;
-  const percentage = target === 0 ? "N/A" : Math.round((amount / target) * 100);
+  const percentage = target === 0 ? "-" : Math.round((amount / target) * 100);
   return { amount, percentage };
 }
 
+export function calculateAchievementPercent(actual: number, target: number) {
+  if (target <= 0) return "-";
+  return Math.min(100, Math.round((actual / target) * 100));
+}
+
 export function calculateAchievement(actual: number, target: number) {
-  if (target <= 0) return "N/A";
-  return `${Math.min(100, Math.round((actual / target) * 100))}%`;
+  const percentage = calculateAchievementPercent(actual, target);
+  return typeof percentage === "number" ? `${percentage}%` : percentage;
 }
 
 export function calculateChangeAgainstPreviousDay(
   currentValue: number,
   previousValue?: number,
 ) {
-  if (typeof previousValue === "undefined" || previousValue === 0) return "N/A";
+  if (typeof previousValue === "undefined" || previousValue <= 0) return "-";
   return `${Math.round(((currentValue - previousValue) / previousValue) * 100)}%`;
 }
 
@@ -138,7 +147,7 @@ export function calculateWinRate(
   closedQuotations: number,
   newQuotations: number,
 ) {
-  if (newQuotations <= 0) return "N/A";
+  if (newQuotations <= 0) return "-";
   return `${Math.round((closedQuotations / newQuotations) * 100)}%`;
 }
 
@@ -150,6 +159,32 @@ function safeNonNegativeNumber(value: unknown): number {
 
 function safeCount(value: unknown): number {
   return Math.trunc(safeNonNegativeNumber(value));
+}
+
+type CustomerCountReport = Pick<
+  DailySalesRecord,
+  "repeatCustomers" | "newCustomers" | "walkIns"
+>;
+
+export function calculateCustomerTotal(reports: readonly CustomerCountReport[]) {
+  return reports.reduce(
+    (total, report) =>
+      total +
+      safeCount(report.repeatCustomers) +
+      safeCount(report.newCustomers) +
+      safeCount(report.walkIns),
+    0,
+  );
+}
+
+export function calculateCustomerGrowthPercent(
+  currentReports: readonly CustomerCountReport[],
+  previousReports: readonly CustomerCountReport[],
+) {
+  const previousTotal = calculateCustomerTotal(previousReports);
+  if (previousTotal === 0) return "-";
+  const currentTotal = calculateCustomerTotal(currentReports);
+  return Math.round(((currentTotal - previousTotal) / previousTotal) * 100);
 }
 
 function reportDateKey(date: string | Date): string {
@@ -226,25 +261,33 @@ export function calculateStatus(
 
 export function calculateTeamTotals(rows: SalespersonReportRow[]) {
   const submittedRows = rows.filter((row) => row.status === "Submitted");
-  const actual = submittedRows.reduce(
+  const actual = rows.reduce(
     (sum, row) => sum + safeNonNegativeNumber(row.revenueSummary.actual),
     0,
   );
-  const monthToDateRevenue = submittedRows.reduce(
+  const monthToDateRevenue = rows.reduce(
     (sum, row) =>
       sum + safeNonNegativeNumber(row.revenueSummary.monthToDateRevenue),
     0,
   );
-  const target = submittedRows.reduce(
+  const target = rows.reduce(
     (sum, row) => sum + (row.target?.salesRevenueTarget ?? 0),
     0,
   );
   const variance = calculateVariance(monthToDateRevenue, target);
   const customers = submittedRows.reduce(
-    (sum, row) => sum + row.customerSummary.monthlyAcquisition,
+    (sum, row) =>
+      sum +
+      row.customerSummary.repeat +
+      row.customerSummary.new +
+      row.customerSummary.walkIns,
     0,
   );
   const dailyAcquisition = submittedRows.reduce((sum, row) => sum + row.customerSummary.dailyAcquisition, 0);
+  const monthlyAcquisition = rows.reduce(
+    (sum, row) => sum + row.customerSummary.monthlyAcquisition,
+    0,
+  );
   const quotations = submittedRows.reduce(
     (sum, row) =>
       sum + row.quotationSummary.new + row.quotationSummary.cumulative,
@@ -265,6 +308,7 @@ export function calculateTeamTotals(rows: SalespersonReportRow[]) {
     variancePercentage: variance.percentage,
     customers,
     dailyAcquisition,
+    monthlyAcquisition,
     quotations,
     pipeline,
     receivables,
@@ -305,11 +349,12 @@ export function calculateDailyReportModel(params: {
       target,
       revenueSummary: {
         target: targetRevenue,
-        actual,
+        actual: monthToDateRevenue,
+        dailyRevenue: actual,
         monthToDateRevenue,
         varianceAmount: variance.amount,
         variancePercentage: variance.percentage,
-        previousDay: previousReport?.salesRevenue ?? "N/A",
+        previousDay: previousReport?.salesRevenue ?? "-",
         changeAgainstPreviousDay,
       },
       customerSummary: {
@@ -328,7 +373,7 @@ export function calculateDailyReportModel(params: {
       quotationSummary: {
         new: report?.newQuotations ?? 0,
         cumulative: report?.closedQuotations ?? 0,
-        averageAge: report?.quotationAge ?? 0,
+        averageAge: "-",
       },
       hotQuotationValue: report?.hotQuotationValue ?? 0,
       salesPipelineValue: report?.salesPipelineValue ?? 0,
@@ -337,8 +382,8 @@ export function calculateDailyReportModel(params: {
         report?.closedQuotations ?? 0,
         report?.newQuotations ?? 0,
       ),
-      opportunities: report?.opportunities ?? "N/A",
-      challenges: report?.challenges ?? "N/A",
+      opportunities: report?.opportunities ?? "-",
+      challenges: report?.challenges ?? "-",
       submittedAt: report?.submittedAt
         ? report.submittedAt.toISOString()
         : null,
@@ -399,15 +444,6 @@ export function calculateMonthlyReportModel(params: {
       (sum, report) => sum + report.closedQuotations,
       0,
     );
-    const averageAge = submittedReports.length
-      ? Math.round(
-          submittedReports.reduce(
-            (sum, report) => sum + safeNonNegativeNumber(report.quotationAge),
-            0,
-          ) /
-            submittedReports.length,
-        )
-      : 0;
     const latestPipelineValue =
       getLatestReport(submittedReports)?.salesPipelineValue ?? 0;
     const latestHotQuotationValue =
@@ -464,7 +500,7 @@ export function calculateMonthlyReportModel(params: {
       quotationSummary: {
         new: newQuotations,
         cumulative: closedQuotations,
-        averageAge,
+        averageAge: "-",
         total: newQuotations + closedQuotations,
       },
       hotQuotationValue: latestHotQuotationValue,
@@ -496,10 +532,18 @@ export function calculateMonthlyReportModel(params: {
     ),
     variancePercentage: "N/A",
     customers: rows.reduce(
-      (sum, row) => sum + row.customerSummary.monthlyAcquisition,
+      (sum, row) =>
+        sum +
+        row.customerSummary.repeat +
+        row.customerSummary.new +
+        row.customerSummary.walkIns,
       0,
     ),
     dailyAcquisition: rows.reduce((sum, row) => sum + row.customerSummary.dailyAcquisition, 0),
+    monthlyAcquisition: rows.reduce(
+      (sum, row) => sum + row.customerSummary.monthlyAcquisition,
+      0,
+    ),
     quotations: rows.reduce((sum, row) => sum + row.quotationSummary.total, 0),
     pipeline: rows.reduce((sum, row) => sum + row.salesPipelineValue, 0),
     receivables: rows.reduce((sum, row) => sum + row.accountReceivable, 0),
