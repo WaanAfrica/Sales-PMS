@@ -102,11 +102,8 @@ export default async function DashboardPage() {
     varianceAmount: todayRow.revenueSummary.varianceAmount,
     variancePercentage: todayRow.revenueSummary.variancePercentage,
     previousDay: todayRow.revenueSummary.previousDay,
-    changeAgainstPreviousDay:
-      todayRow.revenueSummary.changeAgainstPreviousDay,
-    customers: calculateCustomerTotal(
-      todaysRawReport ? [todaysRawReport] : [],
-    ),
+    changeAgainstPreviousDay: todayRow.revenueSummary.changeAgainstPreviousDay,
+    customers: calculateCustomerTotal(todaysRawReport ? [todaysRawReport] : []),
     repeatCustomers: todayRow.customerSummary.repeat,
     newCustomers: todayRow.customerSummary.new,
     walkIns: todayRow.customerSummary.walkIns,

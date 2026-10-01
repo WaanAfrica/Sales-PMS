@@ -70,27 +70,29 @@ export async function GET(request: Request) {
     Number(reportDate.slice(5, 7)),
   );
 
-  const [activeUsers, reports, monthToDateReports, targets] = await Promise.all([
-    prisma.user.findMany({
-      where: { role: "SALES", active: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.dailySales.findMany({
-      where: { date: { gte: startOfDay, lt: endOfDay } },
-    }),
-    prisma.dailySales.findMany({
-      where: {
-        status: "SUBMITTED",
-        date: { gte: monthStart, lt: endOfDay },
-      },
-    }),
-    prisma.monthlyTarget.findMany({
-      where: {
-        month: Number(reportDate.slice(5, 7)),
-        year: Number(reportDate.slice(0, 4)),
-      },
-    }),
-  ]);
+  const [activeUsers, reports, monthToDateReports, targets] = await Promise.all(
+    [
+      prisma.user.findMany({
+        where: { role: "SALES", active: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.dailySales.findMany({
+        where: { date: { gte: startOfDay, lt: endOfDay } },
+      }),
+      prisma.dailySales.findMany({
+        where: {
+          status: "SUBMITTED",
+          date: { gte: monthStart, lt: endOfDay },
+        },
+      }),
+      prisma.monthlyTarget.findMany({
+        where: {
+          month: Number(reportDate.slice(5, 7)),
+          year: Number(reportDate.slice(0, 4)),
+        },
+      }),
+    ],
+  );
 
   const previousReportsByUser = new Map<
     string,

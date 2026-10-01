@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { createDailyReport, updateDailyReport } from "../../actions/daily-report";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  createDailyReport,
+  updateDailyReport,
+} from "../../actions/daily-report";
 import { calculateDailyAcquisition } from "../../lib/calculations/reporting";
 import { getEastAfricaDateKey } from "../../lib/dates";
 
@@ -34,12 +37,17 @@ type SalesReport = {
   accountsReceivable: number;
   opportunities: string | null;
   challenges: string | null;
+  status: string;
 };
 
 export default function SalesDailyReportForm({
   report,
+  isSubmitted: submissionLocked = false,
+  onSubmitted,
 }: {
   report?: SalesReport;
+  isSubmitted?: boolean;
+  onSubmitted?: () => void;
 }) {
   const initialValues = useMemo<DailyReportFormData>(() => {
     const today = getEastAfricaDateKey();
@@ -66,6 +74,14 @@ export default function SalesDailyReportForm({
   }, [report]);
 
   const [form, setForm] = useState<DailyReportFormData>(initialValues);
+  const isSubmitted =
+    submissionLocked ||
+    report?.status === "Submitted" ||
+    report?.status === "SUBMITTED";
+
+  useEffect(() => {
+    setForm(initialValues);
+  }, [initialValues, report?.status]);
 
   const handleChange = (
     key: keyof DailyReportFormData,
@@ -117,6 +133,10 @@ export default function SalesDailyReportForm({
             },
             { submit },
           );
+          if (submit) {
+            onSubmitted?.();
+            window.alert("Report submitted successfully.");
+          }
           setSavedMessage(
             submit
               ? "Report updated successfully."
@@ -140,6 +160,10 @@ export default function SalesDailyReportForm({
             },
             { submit },
           );
+          if (submit) {
+            onSubmitted?.();
+            window.alert("Report submitted successfully.");
+          }
           setSavedMessage(
             submit
               ? "Report submitted successfully."
@@ -172,9 +196,9 @@ export default function SalesDailyReportForm({
           </h2>
         </div>
         <span
-          className={`rounded-full px-3 py-2 text-sm font-semibold ${report ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
+          className={`rounded-full px-3 py-2 text-sm font-semibold ${isSubmitted ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
         >
-          {report ? "Existing submission" : "New report"}
+          {isSubmitted ? "Submitted" : report ? "Draft saved" : "Not submitted"}
         </span>
       </div>
 
@@ -184,6 +208,7 @@ export default function SalesDailyReportForm({
           <input
             type="date"
             value={form.date}
+            disabled={isSubmitted}
             onChange={(event) => handleChange("date", event.target.value)}
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />
@@ -192,10 +217,13 @@ export default function SalesDailyReportForm({
 
       <div className="grid gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-6">
         <label className="space-y-3 text-sm text-slate-700">
-          <span className="block font-semibold text-slate-900">Daily Revenue</span>
+          <span className="block font-semibold text-slate-900">
+            Daily Revenue
+          </span>
           <input
             type="number"
             value={form.salesRevenue}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("salesRevenue", event.target.value)
             }
@@ -212,6 +240,7 @@ export default function SalesDailyReportForm({
             min="0"
             step="1"
             value={form.repeatCustomers}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("repeatCustomers", event.target.value)
             }
@@ -225,6 +254,7 @@ export default function SalesDailyReportForm({
             min="0"
             step="1"
             value={form.newCustomers}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("newCustomers", event.target.value)
             }
@@ -238,6 +268,7 @@ export default function SalesDailyReportForm({
             min="0"
             step="1"
             value={form.walkIns}
+            disabled={isSubmitted}
             onChange={(event) => handleChange("walkIns", event.target.value)}
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />
@@ -265,6 +296,7 @@ export default function SalesDailyReportForm({
           <input
             type="number"
             value={form.newQuotations}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("newQuotations", event.target.value)
             }
@@ -276,6 +308,7 @@ export default function SalesDailyReportForm({
           <input
             type="number"
             value={form.closedQuotations}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("closedQuotations", event.target.value)
             }
@@ -290,6 +323,7 @@ export default function SalesDailyReportForm({
           <input
             type="number"
             value={form.salesPipelineValue}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("salesPipelineValue", event.target.value)
             }
@@ -301,6 +335,7 @@ export default function SalesDailyReportForm({
           <input
             type="number"
             value={form.hotQuotationValue}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("hotQuotationValue", event.target.value)
             }
@@ -315,6 +350,7 @@ export default function SalesDailyReportForm({
           <input
             type="number"
             value={form.accountsReceivable}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("accountsReceivable", event.target.value)
             }
@@ -328,6 +364,7 @@ export default function SalesDailyReportForm({
           <span>Opportunities</span>
           <textarea
             value={form.opportunities}
+            disabled={isSubmitted}
             onChange={(event) =>
               handleChange("opportunities", event.target.value)
             }
@@ -338,28 +375,46 @@ export default function SalesDailyReportForm({
           <span>Challenges</span>
           <textarea
             value={form.challenges}
+            disabled={isSubmitted}
             onChange={(event) => handleChange("challenges", event.target.value)}
             className="min-h-30 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 pt-4">
-        <button
-          type="button"
-          onClick={handleSave}
-          className="rounded-3xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+      {isSubmitted ? (
+        <p
+          className="rounded-2xl bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800"
+          role="status"
         >
-          Save Draft
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          className="rounded-3xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          Submit Report
-        </button>
-      </div>
+          Report submitted successfully. This report is locked and cannot be
+          submitted again.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3 pt-4">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isPending}
+            className="rounded-3xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 disabled:opacity-50"
+          >
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending}
+            className="rounded-3xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+          >
+            Submit Report
+          </button>
+        </div>
+      )}
+      {savedMessage && !isSubmitted ? (
+        <p className="text-sm text-slate-600" role="status">
+          {savedMessage}
+        </p>
+      ) : null}
     </div>
   );
 }

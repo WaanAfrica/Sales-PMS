@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Bell, Menu, Search, UserCircle2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bell, Menu, Search, UserCircle2, X } from "lucide-react";
 import SalesSidebar from "./SalesSidebar";
 import SalesStatCards from "./SalesStatCards";
 import SalesTrendChart from "./SalesTrendChart";
@@ -108,6 +108,14 @@ export default function SalesShell({
   const [activeSection, setActiveSection] = useState<Section>("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<SalesReportItem | null>(
+    null,
+  );
+  const [submissionLocked, setSubmissionLocked] = useState(todayReported);
+
+  useEffect(() => {
+    if (todayReported) setSubmissionLocked(true);
+  }, [todayReported]);
 
   const formattedTodayRevenue = useMemo(
     () =>
@@ -226,9 +234,12 @@ export default function SalesShell({
                   </p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Repeat / New / Walk-ins</p>
+                  <p className="text-sm text-slate-500">
+                    Repeat / New / Walk-ins
+                  </p>
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
-                    {todaySummary.repeatCustomers} / {todaySummary.newCustomers} / {todaySummary.walkIns}
+                    {todaySummary.repeatCustomers} / {todaySummary.newCustomers}{" "}
+                    / {todaySummary.walkIns}
                   </p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 p-5">
@@ -244,9 +255,12 @@ export default function SalesShell({
                   </p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 p-5">
-                  <p className="text-sm text-slate-500">Quotations (New / Cumulative)</p>
+                  <p className="text-sm text-slate-500">
+                    Quotations (New / Cumulative)
+                  </p>
                   <p className="mt-3 text-2xl font-semibold text-slate-900">
-                    {todaySummary.newQuotations} / {todaySummary.cumulativeQuotations}
+                    {todaySummary.newQuotations} /{" "}
+                    {todaySummary.cumulativeQuotations}
                   </p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 p-5">
@@ -306,7 +320,12 @@ export default function SalesShell({
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">
                         {report.status}
                       </span>
-                      <button className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                      <button
+                        type="button"
+                        disabled={report.status !== "Submitted"}
+                        onClick={() => setSelectedReport(report)}
+                        className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
                         View
                       </button>
                     </div>
@@ -319,7 +338,11 @@ export default function SalesShell({
       case "Daily Report":
         return (
           <div className="space-y-6">
-            <SalesDailyReportForm report={todaysReport} />
+            <SalesDailyReportForm
+              report={todaysReport}
+              isSubmitted={submissionLocked}
+              onSubmitted={() => setSubmissionLocked(true)}
+            />
           </div>
         );
       case "My Reports":
@@ -387,7 +410,12 @@ export default function SalesShell({
                           {report.status}
                         </td>
                         <td className="px-4 py-4">
-                          <button className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
+                          <button
+                            type="button"
+                            disabled={report.status !== "Submitted"}
+                            onClick={() => setSelectedReport(report)}
+                            className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
                             View
                           </button>
                         </td>
@@ -586,6 +614,7 @@ export default function SalesShell({
     formattedTodayRevenue,
     formattedPipeline,
     todayReported,
+    submissionLocked,
     todaySummary,
     monthlySummary,
     recentReports,
@@ -593,6 +622,7 @@ export default function SalesShell({
     achievementPercent,
     todaysReport,
     userName,
+    setSelectedReport,
   ]);
 
   const sidebarWidthClass = sidebarCollapsed ? "md:ml-20" : "md:ml-[280px]";
@@ -660,6 +690,95 @@ export default function SalesShell({
           </div>
         </div>
       </main>
+      {selectedReport ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedReport(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="submitted-report-title"
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+              <div>
+                <p className="text-sm font-semibold uppercase text-emerald-700">
+                  Submitted report
+                </p>
+                <h2
+                  id="submitted-report-title"
+                  className="mt-1 text-xl font-semibold text-slate-950"
+                >
+                  {formatDateInEastAfrica(selectedReport.date, {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedReport(null)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+                aria-label="Close report"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <dl className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+              {[
+                [
+                  "Daily Revenue",
+                  `KES ${selectedReport.salesRevenue.toLocaleString("en-KE")}`,
+                ],
+                ["Repeat Customers", String(selectedReport.repeatCustomers)],
+                ["New Customers", String(selectedReport.newCustomers)],
+                ["Walk-ins", String(selectedReport.walkIns)],
+                ["Daily Acquisition", String(selectedReport.dailyAcquisition)],
+                ["New Quotations", String(selectedReport.newQuotations)],
+                [
+                  "Cumulative Quotations",
+                  String(selectedReport.closedQuotations),
+                ],
+                ["Average Quotation Age", "-"],
+                [
+                  "Hot Quotations Value",
+                  `KES ${selectedReport.hotQuotationValue.toLocaleString("en-KE")}`,
+                ],
+                [
+                  "Sales Pipeline Value",
+                  `KES ${selectedReport.salesPipelineValue.toLocaleString("en-KE")}`,
+                ],
+                [
+                  "Account Receivable",
+                  `KES ${selectedReport.accountsReceivable.toLocaleString("en-KE")}`,
+                ],
+                ["Status", selectedReport.status],
+              ].map(([label, value]) => (
+                <div key={label} className="border-b border-slate-100 pb-3">
+                  <dt className="text-sm text-slate-500">{label}</dt>
+                  <dd className="mt-1 font-medium text-slate-900">{value}</dd>
+                </div>
+              ))}
+              <div className="sm:col-span-2">
+                <dt className="text-sm text-slate-500">Opportunities</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-slate-900">
+                  {selectedReport.opportunities || "-"}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-sm text-slate-500">Challenges</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-slate-900">
+                  {selectedReport.challenges || "-"}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

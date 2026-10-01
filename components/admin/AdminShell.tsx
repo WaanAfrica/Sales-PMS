@@ -1,12 +1,25 @@
 "use client";
 
-import { Bell, Eye, EyeOff, Menu, Search, UserCircle2 } from "lucide-react";
+import {
+  Bell,
+  Eye,
+  EyeOff,
+  Menu,
+  Search,
+  Trash2,
+  UserCircle2,
+  X,
+} from "lucide-react";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useEffect } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { assignTargets, createUser } from "../../actions/daily-report";
+import {
+  assignTargets,
+  createUser,
+  deleteUser,
+} from "../../actions/daily-report";
 import { calculateAchievementPercent } from "../../lib/calculations/reporting";
 import { formatDateInEastAfrica, getEastAfricaDateKey } from "../../lib/dates";
 import DashboardOverview from "./DashboardOverview";
@@ -79,6 +92,7 @@ type TargetItem = {
 };
 
 type AdminShellProps = {
+  currentUserId: string;
   summaryCards: SummaryCard[];
   dailyRevenueTrend: RevenuePoint[];
   salesByPersonnel: SalesPersonData[];
@@ -104,6 +118,7 @@ const sections = [
 type Section = (typeof sections)[number];
 
 export default function AdminShell({
+  currentUserId,
   summaryCards,
   dailyRevenueTrend,
   salesByPersonnel,
@@ -148,8 +163,8 @@ export default function AdminShell({
   const [reportType, setReportType] = useState<
     "Daily Report" | "Monthly Report"
   >("Daily Report");
-  const [selectedMonth, setSelectedMonth] = useState(
-    () => Number(getEastAfricaDateKey().slice(5, 7)),
+  const [selectedMonth, setSelectedMonth] = useState(() =>
+    Number(getEastAfricaDateKey().slice(5, 7)),
   );
   const [selectedYear, setSelectedYear] = useState(() =>
     Number(getEastAfricaDateKey().slice(0, 4)),
@@ -210,6 +225,9 @@ export default function AdminShell({
       winRate: string | number;
     };
   } | null>(null);
+  const [selectedReport, setSelectedReport] = useState<
+    NonNullable<typeof reportSummary>["rows"][number] | null
+  >(null);
 
   const performanceRows = useMemo(
     () =>
@@ -310,7 +328,10 @@ export default function AdminShell({
       ],
       ["Total Customers", reportSummary.teamTotals.customers],
       ["Total Daily Acquisition", reportSummary.teamTotals.dailyAcquisition],
-      ["Total Monthly Acquisition", reportSummary.teamTotals.monthlyAcquisition],
+      [
+        "Total Monthly Acquisition",
+        reportSummary.teamTotals.monthlyAcquisition,
+      ],
       ["Total Quotations", reportSummary.teamTotals.quotations],
       ["Total Pipeline", money(reportSummary.teamTotals.pipeline)],
       ["Total Receivables", money(reportSummary.teamTotals.receivables)],
@@ -579,7 +600,11 @@ export default function AdminShell({
       `KES ${value.toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
     const moneyOrDash = (value: number | string) =>
       typeof value === "number" ? money(value) : value;
-    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "pt",
+      format: "a4",
+    });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setFillColor(37, 99, 235);
@@ -601,10 +626,16 @@ export default function AdminShell({
       ["Total Revenue (MTD)", money(reportSummary.teamTotals.actual)],
       ["Team Target", money(reportSummary.teamTotals.target)],
       ["Variance", money(reportSummary.teamTotals.varianceAmount)],
-      ["Variance %", String(reportSummary.teamTotals.variancePercentage ?? "-")],
+      [
+        "Variance %",
+        String(reportSummary.teamTotals.variancePercentage ?? "-"),
+      ],
       ["Total Customers", String(reportSummary.teamTotals.customers)],
       ["Daily Acquisition", String(reportSummary.teamTotals.dailyAcquisition)],
-      ["Monthly Acquisition", String(reportSummary.teamTotals.monthlyAcquisition)],
+      [
+        "Monthly Acquisition",
+        String(reportSummary.teamTotals.monthlyAcquisition),
+      ],
       ["Total Quotations", String(reportSummary.teamTotals.quotations)],
       ["Total Pipeline", money(reportSummary.teamTotals.pipeline)],
       ["Total Receivables", money(reportSummary.teamTotals.receivables)],
@@ -640,16 +671,19 @@ export default function AdminShell({
         fontStyle: "bold",
       },
       didParseCell: ({ cell, column }) => {
-        if (cell.section === "body" && (column.index === 1 || column.index === 3)) {
+        if (
+          cell.section === "body" &&
+          (column.index === 1 || column.index === 3)
+        ) {
           cell.styles.halign = "right";
         }
       },
       pageBreak: "avoid",
     });
 
-    const summaryTableEndY = (
-      doc as jsPDF & { lastAutoTable?: { finalY: number } }
-    ).lastAutoTable?.finalY ?? 82;
+    const summaryTableEndY =
+      (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+        ?.finalY ?? 82;
     const personnelRows = reportSummary.rows.flatMap((row) => {
       const name = `${row.name} (${row.status})`;
       if (row.status !== "Submitted") {
@@ -666,7 +700,16 @@ export default function AdminShell({
           String(row.revenueSummary.changeAgainstPreviousDay ?? "-"),
           "",
         ],
-        ["", "DAILY REVENUE", "", money(row.revenueSummary.dailyRevenue), "", "", "", ""],
+        [
+          "",
+          "DAILY REVENUE",
+          "",
+          money(row.revenueSummary.dailyRevenue),
+          "",
+          "",
+          "",
+          "",
+        ],
         [
           "",
           "CUSTOMERS (REPEAT / NEW / WALK-INS)",
@@ -677,8 +720,26 @@ export default function AdminShell({
           "",
           "",
         ],
-        ["", "DAILY ACQUISITION", "", String(row.customerSummary.dailyAcquisition), "", "", "", ""],
-        ["", "MONTHLY ACQUISITION", "", String(row.customerSummary.monthlyAcquisition), "", "", "", ""],
+        [
+          "",
+          "DAILY ACQUISITION",
+          "",
+          String(row.customerSummary.dailyAcquisition),
+          "",
+          "",
+          "",
+          "",
+        ],
+        [
+          "",
+          "MONTHLY ACQUISITION",
+          "",
+          String(row.customerSummary.monthlyAcquisition),
+          "",
+          "",
+          "",
+          "",
+        ],
         [
           "",
           "QUOTATIONS (NEW / CUMULATIVE)",
@@ -689,10 +750,46 @@ export default function AdminShell({
           "",
           "",
         ],
-        ["", "AVG. OPEN AGE (DAYS)", "", String(row.quotationSummary.averageAge), "", "", "", ""],
-        ["", "HOT QUOTATIONS VALUE", "", money(row.hotQuotationValue), "", "", "", ""],
-        ["", "SALES PIPELINE VALUE", "", money(row.salesPipelineValue), "", "", "", ""],
-        ["", "ACCOUNT RECEIVABLE", "", money(row.accountReceivable), "", "", "", ""],
+        [
+          "",
+          "AVG. OPEN AGE (DAYS)",
+          "",
+          String(row.quotationSummary.averageAge),
+          "",
+          "",
+          "",
+          "",
+        ],
+        [
+          "",
+          "HOT QUOTATIONS VALUE",
+          "",
+          money(row.hotQuotationValue),
+          "",
+          "",
+          "",
+          "",
+        ],
+        [
+          "",
+          "SALES PIPELINE VALUE",
+          "",
+          money(row.salesPipelineValue),
+          "",
+          "",
+          "",
+          "",
+        ],
+        [
+          "",
+          "ACCOUNT RECEIVABLE",
+          "",
+          money(row.accountReceivable),
+          "",
+          "",
+          "",
+          "",
+        ],
         ["", "WIN RATE", "", String(row.winRate ?? "-"), "", "", "", ""],
         ["", "OPPORTUNITIES", "", row.opportunities || "-", "", "", "", ""],
         ["", "CHALLENGES", "", row.challenges || "-", "", "", "", ""],
@@ -701,7 +798,18 @@ export default function AdminShell({
 
     autoTable(doc, {
       startY: summaryTableEndY + 14,
-      head: [["Personnel", "Metric", "Target", "Actual", "Variance", "Prev Day", "Change", "Monthly Acq"]],
+      head: [
+        [
+          "Personnel",
+          "Metric",
+          "Target",
+          "Actual",
+          "Variance",
+          "Prev Day",
+          "Change",
+          "Monthly Acq",
+        ],
+      ],
       body: personnelRows,
       theme: "grid",
       tableWidth: pageWidth - 80,
@@ -1041,6 +1149,40 @@ export default function AdminShell({
                         </button>
                         <button className="rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-700 hover:bg-slate-200">
                           Reset
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isPending || user.id === currentUserId}
+                          title={
+                            user.id === currentUserId
+                              ? "You cannot delete your own account"
+                              : "Delete user and related reports and targets"
+                          }
+                          aria-label={`Delete ${user.name}`}
+                          onClick={() => {
+                            const confirmed = window.confirm(
+                              `Permanently delete ${user.name}, including their daily reports and targets? This cannot be undone.`,
+                            );
+                            if (!confirmed) return;
+
+                            startTransition(async () => {
+                              try {
+                                await deleteUser(user.id);
+                                setActionMessage(`${user.name} was deleted.`);
+                              } catch (error) {
+                                setActionMessage(
+                                  error instanceof Error &&
+                                    error.message ===
+                                      "You cannot delete the last active administrator"
+                                    ? error.message
+                                    : `Unable to delete ${user.name}. Please try again.`,
+                                );
+                              }
+                            });
+                          }}
+                          className="rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </td>
                     </tr>
@@ -1409,20 +1551,51 @@ export default function AdminShell({
                         <th className="px-4 py-3 font-semibold text-slate-600">
                           Variance
                         </th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Previous Day</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Change</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Repeat</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">New</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Walk-ins</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Daily Acquisition</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Monthly Acquisition</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">New Quotations</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Cumulative Quotations</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Avg. Age</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Hot Quotations</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Pipeline</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Receivables</th>
-                        <th className="px-4 py-3 font-semibold text-slate-600">Win Rate</th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Previous Day
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Change
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Repeat
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          New
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Walk-ins
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Daily Acquisition
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Monthly Acquisition
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          New Quotations
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Cumulative Quotations
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Avg. Age
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Hot Quotations
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Pipeline
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Receivables
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Win Rate
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-slate-600">
+                          Action
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -1447,19 +1620,35 @@ export default function AdminShell({
                           <td className="px-4 py-4 text-slate-700">
                             {typeof row.revenueSummary.previousDay === "number"
                               ? `KES ${row.revenueSummary.previousDay.toLocaleString()}`
-                              : row.revenueSummary.previousDay ?? "-"}
+                              : (row.revenueSummary.previousDay ?? "-")}
                           </td>
                           <td className="px-4 py-4 text-slate-700">
                             {row.revenueSummary.changeAgainstPreviousDay ?? "-"}
                           </td>
-                          <td className="px-4 py-4 text-slate-700">{row.customerSummary.repeat}</td>
-                          <td className="px-4 py-4 text-slate-700">{row.customerSummary.new}</td>
-                          <td className="px-4 py-4 text-slate-700">{row.customerSummary.walkIns}</td>
-                          <td className="px-4 py-4 text-slate-700">{row.customerSummary.dailyAcquisition}</td>
-                          <td className="px-4 py-4 text-slate-700">{row.customerSummary.monthlyAcquisition}</td>
-                          <td className="px-4 py-4 text-slate-700">{row.quotationSummary.new}</td>
-                          <td className="px-4 py-4 text-slate-700">{row.quotationSummary.cumulative}</td>
-                          <td className="px-4 py-4 text-slate-700">{row.quotationSummary.averageAge}</td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.customerSummary.repeat}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.customerSummary.new}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.customerSummary.walkIns}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.customerSummary.dailyAcquisition}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.customerSummary.monthlyAcquisition}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.quotationSummary.new}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.quotationSummary.cumulative}
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">
+                            {row.quotationSummary.averageAge}
+                          </td>
                           <td className="px-4 py-4 text-slate-700">
                             KES {row.hotQuotationValue.toLocaleString()}
                           </td>
@@ -1472,12 +1661,181 @@ export default function AdminShell({
                           <td className="px-4 py-4 text-slate-700">
                             {row.winRate}
                           </td>
+                          <td className="px-4 py-4">
+                            <button
+                              type="button"
+                              disabled={row.status !== "Submitted"}
+                              onClick={() => setSelectedReport(row)}
+                              className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            >
+                              View
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
+              {selectedReport ? (
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+                  onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) {
+                      setSelectedReport(null);
+                    }
+                  }}
+                >
+                  <section
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="admin-submitted-report-title"
+                    className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+                  >
+                    <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+                      <div>
+                        <p className="text-sm font-semibold uppercase text-emerald-700">
+                          Submitted report · {reportType}
+                        </p>
+                        <h2
+                          id="admin-submitted-report-title"
+                          className="mt-1 text-xl font-semibold text-slate-950"
+                        >
+                          {selectedReport.name}
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {reportType === "Daily Report"
+                            ? formatDateInEastAfrica(selectedDate, {
+                                day: "2-digit",
+                                month: "long",
+                                year: "numeric",
+                              })
+                            : formatDateInEastAfrica(
+                                `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
+                                { month: "long", year: "numeric" },
+                              )}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReport(null)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+                        aria-label="Close report"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <dl className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {[
+                        ["Status", selectedReport.status],
+                        [
+                          "Sales Revenue (MTD)",
+                          `KES ${selectedReport.revenueSummary.actual.toLocaleString("en-KE")}`,
+                        ],
+                        [
+                          "Target",
+                          `KES ${selectedReport.revenueSummary.target.toLocaleString("en-KE")}`,
+                        ],
+                        [
+                          "Variance",
+                          `KES ${selectedReport.revenueSummary.varianceAmount.toLocaleString("en-KE")}`,
+                        ],
+                        [
+                          "Previous Day",
+                          typeof selectedReport.revenueSummary.previousDay ===
+                          "number"
+                            ? `KES ${selectedReport.revenueSummary.previousDay.toLocaleString("en-KE")}`
+                            : (selectedReport.revenueSummary.previousDay ??
+                              "-"),
+                        ],
+                        [
+                          "Change Against Previous Day",
+                          selectedReport.revenueSummary
+                            .changeAgainstPreviousDay ?? "-",
+                        ],
+                        [
+                          "Repeat Customers",
+                          String(selectedReport.customerSummary.repeat),
+                        ],
+                        [
+                          "New Customers",
+                          String(selectedReport.customerSummary.new),
+                        ],
+                        [
+                          "Walk-ins",
+                          String(selectedReport.customerSummary.walkIns),
+                        ],
+                        [
+                          "Daily Acquisition",
+                          String(
+                            selectedReport.customerSummary.dailyAcquisition,
+                          ),
+                        ],
+                        [
+                          "Monthly Acquisition",
+                          String(
+                            selectedReport.customerSummary.monthlyAcquisition,
+                          ),
+                        ],
+                        [
+                          "New Quotations",
+                          String(selectedReport.quotationSummary.new),
+                        ],
+                        [
+                          "Cumulative Quotations",
+                          String(selectedReport.quotationSummary.cumulative),
+                        ],
+                        [
+                          "Average Open Quotation Age",
+                          String(selectedReport.quotationSummary.averageAge),
+                        ],
+                        [
+                          "Hot Quotations Value",
+                          `KES ${selectedReport.hotQuotationValue.toLocaleString("en-KE")}`,
+                        ],
+                        [
+                          "Sales Pipeline Value",
+                          `KES ${selectedReport.salesPipelineValue.toLocaleString("en-KE")}`,
+                        ],
+                        [
+                          "Account Receivable",
+                          `KES ${selectedReport.accountReceivable.toLocaleString("en-KE")}`,
+                        ],
+                        ["Win Rate", String(selectedReport.winRate ?? "-")],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label}
+                          className="border-b border-slate-100 pb-3"
+                        >
+                          <dt className="text-sm text-slate-500">{label}</dt>
+                          <dd className="mt-1 font-medium text-slate-900">
+                            {value}
+                          </dd>
+                        </div>
+                      ))}
+                      {["Opportunities", "Challenges"].map((label) => {
+                        const value =
+                          label === "Opportunities"
+                            ? selectedReport.opportunities
+                            : selectedReport.challenges;
+                        return (
+                          <div
+                            key={label}
+                            className="border-b border-slate-100 pb-3 sm:col-span-2 lg:col-span-3"
+                          >
+                            <dt className="text-sm text-slate-500">{label}</dt>
+                            <dd className="mt-1 whitespace-pre-wrap font-medium text-slate-900">
+                              {Array.isArray(value)
+                                ? value.join("\n") || "-"
+                                : value || "-"}
+                            </dd>
+                          </div>
+                        );
+                      })}
+                    </dl>
+                  </section>
+                </div>
+              ) : null}
             </div>
           </div>
         );

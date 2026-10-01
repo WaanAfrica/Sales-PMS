@@ -21,7 +21,7 @@ function formatKES(value: number) {
 }
 
 export default async function AdminPage() {
-  await requireRole("ADMIN");
+  const session = await requireRole("ADMIN");
 
   const users = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
   const now = new Date();
@@ -103,10 +103,12 @@ export default async function AdminPage() {
       row.revenueSummary.actual,
       row.target.salesRevenueTarget,
     );
-    return [{
-      name: row.name,
-      achievement: typeof achievement === "number" ? achievement : 0,
-    }];
+    return [
+      {
+        name: row.name,
+        achievement: typeof achievement === "number" ? achievement : 0,
+      },
+    ];
   });
 
   const revenueByDate = new Map<string, number>();
@@ -114,15 +116,15 @@ export default async function AdminPage() {
     .filter((report) => report.status === "SUBMITTED")
     .reverse()
     .forEach((report) => {
-    const dateKey =
-      report.date instanceof Date
-        ? report.date.toISOString().slice(0, 10)
-        : new Date(report.date).toISOString().slice(0, 10);
-    revenueByDate.set(
-      dateKey,
-      (revenueByDate.get(dateKey) ?? 0) + report.salesRevenue,
-    );
-  });
+      const dateKey =
+        report.date instanceof Date
+          ? report.date.toISOString().slice(0, 10)
+          : new Date(report.date).toISOString().slice(0, 10);
+      revenueByDate.set(
+        dateKey,
+        (revenueByDate.get(dateKey) ?? 0) + report.salesRevenue,
+      );
+    });
 
   const dailyRevenueTrend = Array.from(revenueByDate.entries())
     .slice(-7)
@@ -198,6 +200,7 @@ export default async function AdminPage() {
     <main className="h-screen overflow-hidden bg-slate-50 px-8 pb-8 pt-0 text-slate-900">
       <div className="h-full">
         <AdminShell
+          currentUserId={session.user.id}
           summaryCards={summaryCards}
           dailyRevenueTrend={dailyRevenueTrend}
           salesByPersonnel={salesByPersonnel}

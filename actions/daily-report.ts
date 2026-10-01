@@ -1,12 +1,12 @@
-'use server';
+"use server";
 
-import { revalidatePath } from 'next/cache';
-import bcrypt from 'bcryptjs';
-import { z } from 'zod';
-import { prisma } from '../lib/prisma';
-import { requireAuth, requireRole } from '../lib/auth';
-import { dateKeyToUtcDate, getEastAfricaDateKey } from '../lib/dates';
-import { calculateDailyAcquisition } from '../lib/calculations/reporting';
+import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
+import { z } from "zod";
+import { prisma } from "../lib/prisma";
+import { requireAuth, requireRole } from "../lib/auth";
+import { dateKeyToUtcDate, getEastAfricaDateKey } from "../lib/dates";
+import { calculateDailyAcquisition } from "../lib/calculations/reporting";
 
 const dailyReportSchema = z.object({
   date: z.string().min(1),
@@ -30,7 +30,7 @@ export async function createDailyReport(
   const session = await requireAuth();
   const parsed = dailyReportSchema.safeParse(input);
   if (!parsed.success) {
-    throw new Error('Invalid data');
+    throw new Error("Invalid data");
   }
 
   const dto = parsed.data;
@@ -40,7 +40,7 @@ export async function createDailyReport(
   });
 
   if (existing) {
-    throw new Error('A report for that date already exists');
+    throw new Error("A report for that date already exists");
   }
 
   const created = await prisma.dailySales.create({
@@ -51,7 +51,10 @@ export async function createDailyReport(
       repeatCustomers: dto.repeatCustomers,
       newCustomers: dto.newCustomers,
       walkIns: dto.walkIns,
-      dailyAcquisition: calculateDailyAcquisition(dto.newCustomers, dto.walkIns),
+      dailyAcquisition: calculateDailyAcquisition(
+        dto.newCustomers,
+        dto.walkIns,
+      ),
       newQuotations: dto.newQuotations,
       closedQuotations: dto.closedQuotations,
       quotationAge: 0,
@@ -60,12 +63,12 @@ export async function createDailyReport(
       accountsReceivable: dto.accountsReceivable,
       opportunities: dto.opportunities ?? null,
       challenges: dto.challenges ?? null,
-      status: options?.submit ? 'SUBMITTED' : 'DRAFT',
+      status: options?.submit ? "SUBMITTED" : "DRAFT",
       submittedAt: options?.submit ? new Date() : null,
     },
   });
 
-  revalidatePath('/dashboard');
+  revalidatePath("/dashboard");
   return created;
 }
 
@@ -76,15 +79,18 @@ export async function updateDailyReport(
 ) {
   const session = await requireAuth();
   const parsed = dailyReportSchema.safeParse(input);
-  if (!parsed.success) throw new Error('Invalid data');
+  if (!parsed.success) throw new Error("Invalid data");
 
   const existing = await prisma.dailySales.findUnique({ where: { id } });
   if (!existing || existing.userId !== session.user.id) {
-    throw new Error('Report not found');
+    throw new Error("Report not found");
+  }
+  if (existing.status === "SUBMITTED") {
+    throw new Error("This report has already been submitted");
   }
 
   if (parsed.data.date !== getEastAfricaDateKey()) {
-    throw new Error('You can only edit today\'s report');
+    throw new Error("You can only edit today's report");
   }
 
   const updated = await prisma.dailySales.update({
@@ -105,12 +111,14 @@ export async function updateDailyReport(
       accountsReceivable: parsed.data.accountsReceivable,
       opportunities: parsed.data.opportunities ?? null,
       challenges: parsed.data.challenges ?? null,
-      status: options?.submit ? 'SUBMITTED' : existing.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT',
-      submittedAt: options?.submit ? existing.submittedAt ?? new Date() : existing.submittedAt,
+      status: options?.submit ? "SUBMITTED" : "DRAFT",
+      submittedAt: options?.submit
+        ? (existing.submittedAt ?? new Date())
+        : existing.submittedAt,
     },
   });
 
-  revalidatePath('/dashboard');
+  revalidatePath("/dashboard");
   return updated;
 }
 
@@ -118,25 +126,46 @@ export async function deleteDailyReport(id: string) {
   const session = await requireAuth();
   const report = await prisma.dailySales.findUnique({ where: { id } });
   if (!report || report.userId !== session.user.id) {
-    throw new Error('Report not found');
+    throw new Error("Report not found");
   }
 
   await prisma.dailySales.delete({ where: { id } });
-  revalidatePath('/dashboard');
+  revalidatePath("/dashboard");
 }
 
-export async function assignTargets(input: { userId: string; month: number; year: number; salesRevenueTarget: number; repeatCustomerTarget: number; newCustomerTarget: number; walkInTarget: number; quotationTarget: number; pipelineTarget: number }) {
-  await requireRole('ADMIN');
-  const existing = await prisma.monthlyTarget.findFirst({ where: { userId: input.userId, month: input.month, year: input.year } });
+export async function assignTargets(input: {
+  userId: string;
+  month: number;
+  year: number;
+  salesRevenueTarget: number;
+  repeatCustomerTarget: number;
+  newCustomerTarget: number;
+  walkInTarget: number;
+  quotationTarget: number;
+  pipelineTarget: number;
+}) {
+  await requireRole("ADMIN");
+  const existing = await prisma.monthlyTarget.findFirst({
+    where: { userId: input.userId, month: input.month, year: input.year },
+  });
   const result = existing
-    ? await prisma.monthlyTarget.update({ where: { id: existing.id }, data: input })
+    ? await prisma.monthlyTarget.update({
+        where: { id: existing.id },
+        data: input,
+      })
     : await prisma.monthlyTarget.create({ data: input });
-  revalidatePath('/admin');
+  revalidatePath("/admin");
   return result;
 }
 
-export async function createUser(input: { name: string; email: string; password: string; role: 'ADMIN' | 'SALES'; active?: boolean }) {
-  await requireRole('ADMIN');
+export async function createUser(input: {
+  name: string;
+  email: string;
+  password: string;
+  role: "ADMIN" | "SALES";
+  active?: boolean;
+}) {
+  await requireRole("ADMIN");
   const hashed = await bcrypt.hash(input.password, 10);
   const result = await prisma.user.create({
     data: {
@@ -147,26 +176,68 @@ export async function createUser(input: { name: string; email: string; password:
       active: input.active ?? true,
     },
   });
-  revalidatePath('/admin');
+  revalidatePath("/admin");
   return result;
 }
 
-export async function updateUser(id: string, input: { name?: string; email?: string; password?: string; role?: 'ADMIN' | 'SALES'; active?: boolean }) {
-  await requireRole('ADMIN');
+export async function updateUser(
+  id: string,
+  input: {
+    name?: string;
+    email?: string;
+    password?: string;
+    role?: "ADMIN" | "SALES";
+    active?: boolean;
+  },
+) {
+  await requireRole("ADMIN");
   const data: Record<string, unknown> = {};
   if (input.name) data.name = input.name;
   if (input.email) data.email = input.email;
   if (input.password) data.password = await bcrypt.hash(input.password, 10);
   if (input.role) data.role = input.role;
-  if (typeof input.active === 'boolean') data.active = input.active;
+  if (typeof input.active === "boolean") data.active = input.active;
   const result = await prisma.user.update({ where: { id }, data });
-  revalidatePath('/admin');
+  revalidatePath("/admin");
   return result;
 }
 
 export async function deactivateUser(id: string) {
-  await requireRole('ADMIN');
-  const result = await prisma.user.update({ where: { id }, data: { active: false } });
-  revalidatePath('/admin');
+  await requireRole("ADMIN");
+  const result = await prisma.user.update({
+    where: { id },
+    data: { active: false },
+  });
+  revalidatePath("/admin");
   return result;
+}
+
+export async function deleteUser(id: string) {
+  const session = await requireRole("ADMIN");
+  if (session.user.id === id) {
+    throw new Error("You cannot delete your own account");
+  }
+
+  const deleted = await prisma.$transaction(
+    async (transaction) => {
+      const user = await transaction.user.findUnique({ where: { id } });
+      if (!user) throw new Error("User not found");
+
+      if (user.role === "ADMIN" && user.active) {
+        const otherActiveAdmins = await transaction.user.count({
+          where: { role: "ADMIN", active: true, id: { not: id } },
+        });
+        if (otherActiveAdmins === 0) {
+          throw new Error("You cannot delete the last active administrator");
+        }
+      }
+
+      return transaction.user.delete({ where: { id } });
+    },
+    { isolationLevel: "Serializable" },
+  );
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  return deleted;
 }
