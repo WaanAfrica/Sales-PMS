@@ -1,5 +1,10 @@
 import { prisma } from "../../lib/prisma";
 import { requireRole } from "../../lib/auth";
+import {
+  formatDateInEastAfrica,
+  getEastAfricaDateKey,
+  utcMonthStart,
+} from "../../lib/dates";
 import AdminShell from "../../components/admin/AdminShell";
 
 function formatKES(value: number) {
@@ -15,9 +20,11 @@ export default async function AdminPage() {
 
   const users = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const todayDateKey = getEastAfricaDateKey(now);
+  const [year, month] = todayDateKey.split("-").map(Number);
+  const monthStart = utcMonthStart(year, month);
+  const nextMonthStart = utcMonthStart(year, month + 1);
+  const previousMonthStart = utcMonthStart(year, month - 1);
   const previousMonthEnd = monthStart;
 
   const [reports, monthlyReports, targets, previousMonthReports] =
@@ -39,8 +46,8 @@ export default async function AdminPage() {
       }),
       prisma.monthlyTarget.findMany({
         where: {
-          month: now.getMonth() + 1,
-          year: now.getFullYear(),
+          month,
+          year,
         },
         include: { user: true },
       }),
@@ -126,7 +133,7 @@ export default async function AdminPage() {
   const dailyRevenueTrend = Array.from(revenueByDate.entries())
     .slice(-7)
     .map(([iso, revenue]) => ({
-      label: new Date(iso).toLocaleDateString("en-GB", {
+      label: formatDateInEastAfrica(iso, {
         day: "numeric",
         month: "short",
       }),

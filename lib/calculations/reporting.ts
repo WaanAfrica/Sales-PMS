@@ -5,6 +5,7 @@ export type ReportStatus = "Pending" | "Draft" | "Submitted" | "Not Submitted";
 export type DailyReportSummary = {
   target: number;
   actual: number;
+  monthToDateRevenue: number;
   varianceAmount: number;
   variancePercentage: number | string;
   previousDay: number | string;
@@ -54,6 +55,7 @@ export type DailyReportModel = {
   teamTotals: {
     target: number;
     actual: number;
+    monthToDateRevenue: number;
     varianceAmount: number;
     variancePercentage: number | string;
     customers: number;
@@ -101,6 +103,7 @@ export type MonthlyReportModel = {
   teamTotals: {
     target: number;
     actual: number;
+    monthToDateRevenue: number;
     varianceAmount: number;
     variancePercentage: number | string;
     customers: number;
@@ -139,12 +142,77 @@ export function calculateWinRate(
   return `${Math.round((closedQuotations / newQuotations) * 100)}%`;
 }
 
+function safeNonNegativeNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : 0;
+}
+
+function safeCount(value: unknown): number {
+  return Math.trunc(safeNonNegativeNumber(value));
+}
+
+function reportDateKey(date: string | Date): string {
+  if (date instanceof Date) {
+    return Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : "";
+  }
+  return /^\d{4}-\d{2}-\d{2}/.test(date) ? date.slice(0, 10) : "";
+}
+
+export function calculateDailyAcquisition(
+  newCustomers: number | null | undefined,
+  walkIns: number | null | undefined,
+): number {
+  return safeCount(newCustomers) + safeCount(walkIns);
+}
+
+type AcquisitionReport = Pick<
+  DailySalesRecord,
+  "date" | "status" | "newCustomers" | "walkIns"
+>;
+
 export function calculateMonthlyAcquisition(
-  repeatCustomers: number,
-  newCustomers: number,
-  walkIns: number,
-) {
-  return repeatCustomers + newCustomers + walkIns;
+  reports: readonly AcquisitionReport[],
+  throughDate: string | Date,
+): number {
+  const throughDateKey = reportDateKey(throughDate);
+  const monthKey = throughDateKey.slice(0, 7);
+  if (!monthKey) return 0;
+
+  return reports.reduce((total, report) => {
+    const dateKey = reportDateKey(report.date);
+    if (
+      report.status !== "SUBMITTED" ||
+      dateKey.slice(0, 7) !== monthKey ||
+      dateKey > throughDateKey
+    ) {
+      return total;
+    }
+    return total + calculateDailyAcquisition(report.newCustomers, report.walkIns);
+  }, 0);
+}
+
+type RevenueReport = Pick<DailySalesRecord, "date" | "status" | "salesRevenue">;
+
+export function calculateMonthToDateRevenue(
+  reports: readonly RevenueReport[],
+  throughDate: string | Date,
+): number {
+  const throughDateKey = reportDateKey(throughDate);
+  const monthKey = throughDateKey.slice(0, 7);
+  if (!monthKey) return 0;
+
+  return reports.reduce((total, report) => {
+    const dateKey = reportDateKey(report.date);
+    if (
+      report.status !== "SUBMITTED" ||
+      dateKey.slice(0, 7) !== monthKey ||
+      dateKey > throughDateKey
+    ) {
+      return total;
+    }
+    return total + safeNonNegativeNumber(report.salesRevenue);
+  }, 0);
 }
 
 export function calculateStatus(
@@ -158,12 +226,20 @@ export function calculateStatus(
 
 export function calculateTeamTotals(rows: SalespersonReportRow[]) {
   const submittedRows = rows.filter((row) => row.status === "Submitted");
-  const actual = submittedRows.reduce((sum, row) => sum + row.revenueSummary.actual, 0);
+  const actual = submittedRows.reduce(
+    (sum, row) => sum + safeNonNegativeNumber(row.revenueSummary.actual),
+    0,
+  );
+  const monthToDateRevenue = submittedRows.reduce(
+    (sum, row) =>
+      sum + safeNonNegativeNumber(row.revenueSummary.monthToDateRevenue),
+    0,
+  );
   const target = submittedRows.reduce(
     (sum, row) => sum + (row.target?.salesRevenueTarget ?? 0),
     0,
   );
-  const variance = calculateVariance(actual, target);
+  const variance = calculateVariance(monthToDateRevenue, target);
   const customers = submittedRows.reduce(
     (sum, row) => sum + row.customerSummary.monthlyAcquisition,
     0,
@@ -184,6 +260,7 @@ export function calculateTeamTotals(rows: SalespersonReportRow[]) {
   return {
     target,
     actual,
+    monthToDateRevenue,
     varianceAmount: variance.amount,
     variancePercentage: variance.percentage,
     customers,
@@ -199,6 +276,7 @@ export function calculateDailyReportModel(params: {
   reportDate: Date;
   activeUsers: Array<{ id: string; name: string }>;
   reports: DailySalesRecord[];
+  monthToDateReports: DailySalesRecord[];
   targets: MonthlyTargetRecord[];
   previousReportsByUser: Map<string, DailySalesRecord | undefined>;
 }): DailyReportModel {
@@ -206,9 +284,13 @@ export function calculateDailyReportModel(params: {
     const report = params.reports.find((item) => item.userId === user.id);
     const target = params.targets.find((item) => item.userId === user.id);
     const previousReport = params.previousReportsByUser.get(user.id);
-    const actual = report?.salesRevenue ?? 0;
+    const actual = safeNonNegativeNumber(report?.salesRevenue);
+    const monthToDateRevenue = calculateMonthToDateRevenue(
+      params.monthToDateReports.filter((item) => item.userId === user.id),
+      params.reportDate,
+    );
     const targetRevenue = target?.salesRevenueTarget ?? 0;
-    const variance = calculateVariance(actual, targetRevenue);
+    const variance = calculateVariance(monthToDateRevenue, targetRevenue);
     const changeAgainstPreviousDay = calculateChangeAgainstPreviousDay(
       actual,
       previousReport?.salesRevenue,
@@ -224,20 +306,23 @@ export function calculateDailyReportModel(params: {
       revenueSummary: {
         target: targetRevenue,
         actual,
+        monthToDateRevenue,
         varianceAmount: variance.amount,
         variancePercentage: variance.percentage,
         previousDay: previousReport?.salesRevenue ?? "N/A",
         changeAgainstPreviousDay,
       },
       customerSummary: {
-        repeat: report?.repeatCustomers ?? 0,
-        new: report?.newCustomers ?? 0,
-        walkIns: report?.walkIns ?? 0,
-        dailyAcquisition: report?.dailyAcquisition ?? 0,
+        repeat: safeCount(report?.repeatCustomers),
+        new: safeCount(report?.newCustomers),
+        walkIns: safeCount(report?.walkIns),
+        dailyAcquisition: calculateDailyAcquisition(
+          report?.newCustomers,
+          report?.walkIns,
+        ),
         monthlyAcquisition: calculateMonthlyAcquisition(
-          report?.repeatCustomers ?? 0,
-          report?.newCustomers ?? 0,
-          report?.walkIns ?? 0,
+          params.monthToDateReports.filter((item) => item.userId === user.id),
+          params.reportDate,
         ),
       },
       quotationSummary: {
@@ -303,12 +388,7 @@ export function calculateMonthlyReportModel(params: {
     const submittedReports = userReports.filter((report) => report.status === "SUBMITTED");
     const target = params.targets.find((item) => item.userId === user.id);
     const actualRevenue = submittedReports.reduce(
-      (sum, report) => sum + report.salesRevenue,
-      0,
-    );
-    const actualCustomers = submittedReports.reduce(
-      (sum, report) =>
-        sum + report.repeatCustomers + report.newCustomers + report.walkIns,
+      (sum, report) => sum + safeNonNegativeNumber(report.salesRevenue),
       0,
     );
     const newQuotations = submittedReports.reduce(
@@ -321,7 +401,10 @@ export function calculateMonthlyReportModel(params: {
     );
     const averageAge = submittedReports.length
       ? Math.round(
-          submittedReports.reduce((sum, report) => sum + report.quotationAge, 0) /
+          submittedReports.reduce(
+            (sum, report) => sum + safeNonNegativeNumber(report.quotationAge),
+            0,
+          ) /
             submittedReports.length,
         )
       : 0;
@@ -350,19 +433,33 @@ export function calculateMonthlyReportModel(params: {
       revenueSummary: {
         target: target?.salesRevenueTarget ?? 0,
         actual: actualRevenue,
+        monthToDateRevenue: actualRevenue,
         varianceAmount: variance.amount,
         variancePercentage: variance.percentage,
         achievement,
       },
       customerSummary: {
         repeat: submittedReports.reduce(
-          (sum, report) => sum + report.repeatCustomers,
+          (sum, report) => sum + safeCount(report.repeatCustomers),
           0,
         ),
-        new: submittedReports.reduce((sum, report) => sum + report.newCustomers, 0),
-        walkIns: submittedReports.reduce((sum, report) => sum + report.walkIns, 0),
-        dailyAcquisition: submittedReports.reduce((sum, report) => sum + report.dailyAcquisition, 0),
-        monthlyAcquisition: actualCustomers,
+        new: submittedReports.reduce(
+          (sum, report) => sum + safeCount(report.newCustomers),
+          0,
+        ),
+        walkIns: submittedReports.reduce(
+          (sum, report) => sum + safeCount(report.walkIns),
+          0,
+        ),
+        dailyAcquisition: submittedReports.reduce(
+          (sum, report) =>
+            sum + calculateDailyAcquisition(report.newCustomers, report.walkIns),
+          0,
+        ),
+        monthlyAcquisition: calculateMonthlyAcquisition(
+          submittedReports,
+          new Date(Date.UTC(params.year, params.month, 0)),
+        ),
       },
       quotationSummary: {
         new: newQuotations,
@@ -389,6 +486,10 @@ export function calculateMonthlyReportModel(params: {
       0,
     ),
     actual: rows.reduce((sum, row) => sum + row.revenueSummary.actual, 0),
+    monthToDateRevenue: rows.reduce(
+      (sum, row) => sum + row.revenueSummary.monthToDateRevenue,
+      0,
+    ),
     varianceAmount: rows.reduce(
       (sum, row) => sum + row.revenueSummary.varianceAmount,
       0,

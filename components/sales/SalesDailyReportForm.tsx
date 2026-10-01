@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { createDailyReport, updateDailyReport } from "../../actions/daily-report";
+import { getEastAfricaDateKey } from "../../lib/dates";
 
 type DailyReportFormData = {
   date: string;
@@ -9,7 +10,6 @@ type DailyReportFormData = {
   repeatCustomers: string;
   newCustomers: string;
   walkIns: string;
-  dailyAcquisition: string;
   newQuotations: string;
   closedQuotations: string;
   quotationAge: string;
@@ -27,7 +27,6 @@ type SalesReport = {
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
-  dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
   quotationAge: number;
@@ -44,11 +43,11 @@ export default function SalesDailyReportForm({
   report?: SalesReport;
 }) {
   const initialValues = useMemo<DailyReportFormData>(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getEastAfricaDateKey();
     const reportDate = report?.date
       ? typeof report.date === "string"
         ? report.date.slice(0, 10)
-        : new Date(report.date).toISOString().slice(0, 10)
+        : getEastAfricaDateKey(report.date)
       : today;
 
     return {
@@ -57,7 +56,6 @@ export default function SalesDailyReportForm({
       repeatCustomers: String(report?.repeatCustomers ?? 0),
       newCustomers: String(report?.newCustomers ?? 0),
       walkIns: String(report?.walkIns ?? 0),
-      dailyAcquisition: String(report?.dailyAcquisition ?? 0),
       newQuotations: String(report?.newQuotations ?? 0),
       closedQuotations: String(report?.closedQuotations ?? 0),
       quotationAge: String(report?.quotationAge ?? 0),
@@ -80,7 +78,6 @@ export default function SalesDailyReportForm({
       "repeatCustomers",
       "newCustomers",
       "walkIns",
-      "dailyAcquisition",
       "newQuotations",
       "closedQuotations",
       "quotationAge",
@@ -113,7 +110,6 @@ export default function SalesDailyReportForm({
               repeatCustomers: Number(form.repeatCustomers),
               newCustomers: Number(form.newCustomers),
               walkIns: Number(form.walkIns),
-              dailyAcquisition: Number(form.dailyAcquisition),
               newQuotations: Number(form.newQuotations),
               closedQuotations: Number(form.closedQuotations),
               quotationAge: Number(form.quotationAge),
@@ -138,7 +134,6 @@ export default function SalesDailyReportForm({
               repeatCustomers: Number(form.repeatCustomers),
               newCustomers: Number(form.newCustomers),
               walkIns: Number(form.walkIns),
-              dailyAcquisition: Number(form.dailyAcquisition),
               newQuotations: Number(form.newQuotations),
               closedQuotations: Number(form.closedQuotations),
               quotationAge: Number(form.quotationAge),
@@ -202,7 +197,7 @@ export default function SalesDailyReportForm({
 
       <div className="grid gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-6">
         <div className="space-y-3">
-          <p className="font-semibold text-slate-900">Sales Revenue</p>
+          <p className="font-semibold text-slate-900">Daily Revenue</p>
           <input
             type="number"
             value={form.salesRevenue}
@@ -219,6 +214,8 @@ export default function SalesDailyReportForm({
           <span>Repeat Customers</span>
           <input
             type="number"
+            min="0"
+            step="1"
             value={form.repeatCustomers}
             onChange={(event) =>
               handleChange("repeatCustomers", event.target.value)
@@ -230,6 +227,8 @@ export default function SalesDailyReportForm({
           <span>New Customers</span>
           <input
             type="number"
+            min="0"
+            step="1"
             value={form.newCustomers}
             onChange={(event) =>
               handleChange("newCustomers", event.target.value)
@@ -241,21 +240,10 @@ export default function SalesDailyReportForm({
           <span>Walk-ins</span>
           <input
             type="number"
+            min="0"
+            step="1"
             value={form.walkIns}
             onChange={(event) => handleChange("walkIns", event.target.value)}
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
-          />
-        </label>
-        <label className="space-y-2 text-sm text-slate-700">
-          <span>Daily Acquisition</span>
-          <input
-            type="number"
-            min="0"
-            required
-            value={form.dailyAcquisition}
-            onChange={(event) =>
-              handleChange("dailyAcquisition", event.target.value)
-            }
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
           />
         </label>
@@ -285,9 +273,14 @@ export default function SalesDailyReportForm({
           />
         </label>
         <label className="space-y-2 text-sm text-slate-700">
-          <span>Average Age</span>
+          <span>Avg. Open Quotation Age (Days)</span>
+          <span className="block text-xs text-slate-500">
+            Mean age of open quotations on this report date.
+          </span>
           <input
             type="number"
+            min={0}
+            step="any"
             value={form.quotationAge}
             onChange={(event) =>
               handleChange("quotationAge", event.target.value)

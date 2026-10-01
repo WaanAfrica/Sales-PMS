@@ -5,14 +5,15 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole } from '../lib/auth';
+import { dateKeyToUtcDate, getEastAfricaDateKey } from '../lib/dates';
+import { calculateDailyAcquisition } from '../lib/calculations/reporting';
 
 const dailyReportSchema = z.object({
   date: z.string().min(1),
   salesRevenue: z.number().min(0),
-  repeatCustomers: z.number().min(0),
-  newCustomers: z.number().min(0),
-  walkIns: z.number().min(0),
-  dailyAcquisition: z.number().int().min(0),
+  repeatCustomers: z.number().int().min(0).finite(),
+  newCustomers: z.number().int().min(0).finite(),
+  walkIns: z.number().int().min(0).finite(),
   newQuotations: z.number().min(0),
   closedQuotations: z.number().min(0),
   quotationAge: z.number().min(0),
@@ -34,7 +35,7 @@ export async function createDailyReport(
   }
 
   const dto = parsed.data;
-  const reportDate = new Date(dto.date);
+  const reportDate = dateKeyToUtcDate(dto.date);
   const existing = await prisma.dailySales.findFirst({
     where: { userId: session.user.id, date: reportDate },
   });
@@ -51,7 +52,7 @@ export async function createDailyReport(
       repeatCustomers: dto.repeatCustomers,
       newCustomers: dto.newCustomers,
       walkIns: dto.walkIns,
-      dailyAcquisition: dto.dailyAcquisition,
+      dailyAcquisition: calculateDailyAcquisition(dto.newCustomers, dto.walkIns),
       newQuotations: dto.newQuotations,
       closedQuotations: dto.closedQuotations,
       quotationAge: dto.quotationAge,
@@ -83,11 +84,7 @@ export async function updateDailyReport(
     throw new Error('Report not found');
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const reportDate = new Date(parsed.data.date);
-  reportDate.setHours(0, 0, 0, 0);
-  if (reportDate.getTime() !== today.getTime()) {
+  if (parsed.data.date !== getEastAfricaDateKey()) {
     throw new Error('You can only edit today\'s report');
   }
 
@@ -98,7 +95,10 @@ export async function updateDailyReport(
       repeatCustomers: parsed.data.repeatCustomers,
       newCustomers: parsed.data.newCustomers,
       walkIns: parsed.data.walkIns,
-      dailyAcquisition: parsed.data.dailyAcquisition,
+      dailyAcquisition: calculateDailyAcquisition(
+        parsed.data.newCustomers,
+        parsed.data.walkIns,
+      ),
       newQuotations: parsed.data.newQuotations,
       closedQuotations: parsed.data.closedQuotations,
       quotationAge: parsed.data.quotationAge,

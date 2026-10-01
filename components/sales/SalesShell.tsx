@@ -7,6 +7,7 @@ import SalesStatCards from "./SalesStatCards";
 import SalesTrendChart from "./SalesTrendChart";
 import SalesDailyReportForm from "./SalesDailyReportForm";
 import CompanyValuesSection from "../CompanyValuesSection";
+import { formatDateInEastAfrica } from "../../lib/dates";
 
 type SalesReportItem = {
   id: string;
@@ -249,7 +250,7 @@ export default function SalesShell({
                   >
                     <div>
                       <p className="font-semibold text-slate-900">
-                        {new Date(report.date).toLocaleDateString()}
+                        {formatDateInEastAfrica(report.date)}
                       </p>
                       <p className="text-sm text-slate-600">
                         Revenue KES {report.salesRevenue.toLocaleString()}
@@ -326,7 +327,7 @@ export default function SalesShell({
                     {recentReports.map((report) => (
                       <tr key={report.id}>
                         <td className="px-4 py-4 text-slate-700">
-                          {new Date(report.date).toLocaleDateString()}
+                          {formatDateInEastAfrica(report.date)}
                         </td>
                         <td className="px-4 py-4 text-slate-700">
                           KES {report.salesRevenue.toLocaleString()}

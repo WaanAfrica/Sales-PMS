@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { requireRole } from "../../../lib/auth";
+import { dateKeyToUtcDate, utcMonthStart } from "../../../lib/dates";
 import {
   calculateDailyReportModel,
   calculateMonthlyReportModel,
@@ -22,8 +23,8 @@ export async function GET(request: Request) {
       );
     }
 
-    const monthStart = new Date(year, month - 1, 1);
-    const nextMonthStart = new Date(year, month, 1);
+    const monthStart = utcMonthStart(year, month);
+    const nextMonthStart = utcMonthStart(year, month + 1);
 
     const [activeUsers, reports, targets] = await Promise.all([
       prisma.user.findMany({
@@ -60,11 +61,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "date is required" }, { status: 400 });
   }
 
-  const selectedDate = new Date(reportDate);
-  const startOfDay = new Date(selectedDate);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(selectedDate);
-  endOfDay.setHours(23, 59, 59, 999);
+  const selectedDate = dateKeyToUtcDate(reportDate);
+  const startOfDay = selectedDate;
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
 
   const [activeUsers, reports, targets] = await Promise.all([
     prisma.user.findMany({
@@ -72,12 +72,12 @@ export async function GET(request: Request) {
       orderBy: { name: "asc" },
     }),
     prisma.dailySales.findMany({
-      where: { date: { gte: startOfDay, lte: endOfDay } },
+      where: { date: { gte: startOfDay, lt: endOfDay } },
     }),
     prisma.monthlyTarget.findMany({
       where: {
-        month: selectedDate.getMonth() + 1,
-        year: selectedDate.getFullYear(),
+        month: Number(reportDate.slice(5, 7)),
+        year: Number(reportDate.slice(0, 4)),
       },
     }),
   ]);

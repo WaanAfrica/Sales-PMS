@@ -1,5 +1,13 @@
 import { prisma } from "../../lib/prisma";
 import { requireRole } from "../../lib/auth";
+import {
+  calculateDailyAcquisition,
+  calculateMonthlyAcquisition,
+  calculateMonthToDateRevenue,
+  formatDateInEastAfrica,
+  getEastAfricaDateKey,
+  utcMonthStart,
+} from "../../lib/dates";
 import SalesShell from "../../components/sales/SalesShell";
 
 type DailyReportRecord = {
@@ -9,7 +17,6 @@ type DailyReportRecord = {
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
-  dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
   quotationAge: number;
@@ -28,7 +35,6 @@ type DailyReport = {
   repeatCustomers: number;
   newCustomers: number;
   walkIns: number;
-  dailyAcquisition: number;
   newQuotations: number;
   closedQuotations: number;
   quotationAge: number;
@@ -40,18 +46,39 @@ type DailyReport = {
   status: "PENDING" | "DRAFT" | "SUBMITTED";
 };
 
+function normalizeReport(report: DailyReportRecord): DailyReport {
+  return {
+    id: report.id,
+    date: report.date.toISOString(),
+    salesRevenue: report.salesRevenue,
+    repeatCustomers: report.repeatCustomers,
+    newCustomers: report.newCustomers,
+    walkIns: report.walkIns,
+    newQuotations: report.newQuotations,
+    closedQuotations: report.closedQuotations,
+    quotationAge: report.quotationAge,
+    salesPipelineValue: report.salesPipelineValue,
+    hotQuotationValue: report.hotQuotationValue,
+    accountsReceivable: report.accountsReceivable,
+    opportunities: report.opportunities,
+    challenges: report.challenges,
+    status: report.status,
+  };
+}
+
 export default async function DashboardPage() {
   const session = await requireRole("SALES");
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const startOfPreviousMonth = new Date(
-    now.getFullYear(),
-    now.getMonth() - 1,
-    1,
+  const todayDateKey = getEastAfricaDateKey(now);
+  const [year, month] = todayDateKey.split("-").map(Number);
+  const startOfMonth = utcMonthStart(year, month);
+  const startOfPreviousMonth = utcMonthStart(year, month - 1);
+  const endOfToday = new Date(startOfMonth);
+  endOfToday.setUTCDate(
+    dateKeyToUtcDate(todayDateKey).getUTCDate() + 1,
   );
 
-  const [allReports, monthlyTarget, previousReports] = await Promise.all([
+  const [allReports, monthlyTarget, monthToDateReports] = await Promise.all([
     prisma.dailySales.findMany({
       where: { userId: session.user.id },
       orderBy: { date: "desc" },
@@ -60,44 +87,16 @@ export default async function DashboardPage() {
     prisma.monthlyTarget.findFirst({
       where: {
         userId: session.user.id,
-        month: now.getMonth() + 1,
-        year: now.getFullYear(),
-      },
-    }),
-    prisma.dailySales.findMany({
       where: {
         userId: session.user.id,
-        date: {
-          gte: startOfPreviousMonth,
-          lt: startOfMonth,
-        },
+        status: "SUBMITTED",
+        date: { gte: startOfMonth, lt: endOfToday },
       },
-      orderBy: { date: "desc" },
+      orderBy: { date: "asc" },
     }),
   ]);
 
-  const normalizedReports: DailyReport[] = allReports.map((report: DailyReportRecord) => ({
-    id: report.id,
-    date:
-      report.date instanceof Date
-        ? report.date.toISOString()
-        : new Date(report.date).toISOString(),
-    salesRevenue: report.salesRevenue,
-    repeatCustomers: report.repeatCustomers,
-    newCustomers: report.newCustomers,
-    walkIns: report.walkIns,
-    dailyAcquisition: report.dailyAcquisition,
-    newQuotations: report.newQuotations,
-    closedQuotations: report.closedQuotations,
-    quotationAge: report.quotationAge,
-    hotQuotationValue: report.hotQuotationValue,
-    salesPipelineValue: report.salesPipelineValue,
-    accountsReceivable: report.accountsReceivable,
-    opportunities: report.opportunities,
-    challenges: report.challenges,
-    status: report.status,
-  }));
-
+  const normalizedReports = allReports.map(normalizeReport);
   const todaysReport = normalizedReports
     .map((report: DailyReport) => ({
       ...report,
@@ -108,17 +107,13 @@ export default async function DashboardPage() {
             ? "Draft"
             : "Pending",
     }))
-    .find(
-      (report) => new Date(report.date).toDateString() === now.toDateString(),
-    );
+    .find((report) => report.date.slice(0, 10) === todayDateKey);
 
-  const monthlyReports = normalizedReports.filter((report) => {
-    const date = new Date(report.date);
-    return (
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear()
-    );
-  });
+  const monthlyReports = monthToDateReports.map(normalizeReport);
+  const monthlyAcquisition = calculateMonthlyAcquisition(
+    monthToDateReports,
+    todayDateKey,
+  );
 
   const todaySummary = {
     revenue: todaysReport?.salesRevenue ?? 0,
@@ -127,7 +122,11 @@ export default async function DashboardPage() {
         todaysReport.newCustomers +
         todaysReport.walkIns
       : 0,
-    dailyAcquisition: todaysReport?.dailyAcquisition ?? 0,
+    dailyAcquisition: calculateDailyAcquisition(
+      todaysReport?.newCustomers,
+      todaysReport?.walkIns,
+    ),
+    monthlyAcquisition,
     quotations: todaysReport
       ? todaysReport.newQuotations + todaysReport.closedQuotations
       : 0,
@@ -136,18 +135,17 @@ export default async function DashboardPage() {
   };
 
   const monthlySummary = {
-    revenue: monthlyReports.reduce((sum: number, item: DailyReport) => sum + item.salesRevenue, 0),
+    revenue: calculateMonthToDateRevenue(monthToDateReports, todayDateKey),
     customers: monthlyReports.reduce(
       (sum: number, item: DailyReport) =>
         sum + item.repeatCustomers + item.newCustomers + item.walkIns,
       0,
     ),
-    dailyAcquisition: monthlyReports.reduce(
-      (sum: number, item: DailyReport) => sum + item.dailyAcquisition,
-      0,
-    ),
+    dailyAcquisition: monthlyAcquisition,
+    monthlyAcquisition,
     quotations: monthlyReports.reduce(
-      (sum: number, item: DailyReport) => sum + item.newQuotations + item.closedQuotations,
+      (sum: number, item: DailyReport) =>
+        sum + item.newQuotations + item.closedQuotations,
       0,
     ),
     pipeline: monthlyReports.reduce(
@@ -165,8 +163,8 @@ export default async function DashboardPage() {
     ? Math.min(100, Math.round((monthlySummary.revenue / targetValue) * 100))
     : 0;
 
-  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previousMonthStart = startOfPreviousMonth;
+  const previousMonthEnd = startOfMonth;
   const previousMonthReports = await prisma.dailySales.findMany({
     where: {
       userId: session.user.id,
@@ -190,10 +188,9 @@ export default async function DashboardPage() {
     : 0;
 
   const revenueTrend = monthlyReports
-    .slice(0, 7)
-    .reverse()
+    .slice(-7)
     .map((report: DailyReport) => ({
-      label: new Date(report.date).toLocaleDateString("en-GB", {
+      label: formatDateInEastAfrica(report.date, {
         day: "numeric",
         month: "short",
       }),
@@ -201,10 +198,9 @@ export default async function DashboardPage() {
     }));
 
   const pipelineTrend = monthlyReports
-    .slice(0, 7)
-    .reverse()
+    .slice(-7)
     .map((report: DailyReport) => ({
-      label: new Date(report.date).toLocaleDateString("en-GB", {
+      label: formatDateInEastAfrica(report.date, {
         day: "numeric",
         month: "short",
       }),
@@ -230,7 +226,6 @@ export default async function DashboardPage() {
     repeatCustomers: report.repeatCustomers,
     newCustomers: report.newCustomers,
     walkIns: report.walkIns,
-    dailyAcquisition: report.dailyAcquisition,
     newQuotations: report.newQuotations,
     closedQuotations: report.closedQuotations,
     quotationAge: report.quotationAge,
@@ -263,6 +258,12 @@ export default async function DashboardPage() {
           pipelineTrend={pipelineTrend}
           monthlyWinRate={monthlyWinRate}
           customerGrowthPercent={customerGrowthPercent}
+          todaysReport={todaysReport ?? undefined}
+        />
+      </div>
+    </main>
+  );
+}
           todaysReport={todaysReport ?? undefined}
         />
       </div>
