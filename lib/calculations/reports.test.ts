@@ -184,3 +184,74 @@ test("daily team totals preserve submitted MTD revenue when today is not submitt
   assert.equal(model.teamTotals.monthlyAcquisition, 6);
   assert.equal(model.rows[0].revenueSummary.previousDay, "-");
 });
+
+test("historical daily reports use selected-date data and exclude later reports from MTD", () => {
+  const previousReport = {
+    id: "report-previous",
+    userId: "sales-1",
+    date: "2026-10-04",
+    salesRevenue: 10_000,
+    repeatCustomers: 1,
+    newCustomers: 2,
+    walkIns: 1,
+    dailyAcquisition: 3,
+    newQuotations: 2,
+    closedQuotations: 1,
+    quotationAge: 0,
+    hotQuotationValue: 0,
+    salesPipelineValue: 0,
+    accountsReceivable: 0,
+    opportunities: null,
+    challenges: null,
+    status: "SUBMITTED" as const,
+    submittedAt: new Date("2026-10-04T08:00:00Z"),
+    updatedAt: new Date("2026-10-04T08:00:00Z"),
+  };
+  const selectedReport = {
+    ...previousReport,
+    id: "report-selected",
+    date: "2026-10-05",
+    salesRevenue: 20_000,
+    repeatCustomers: 2,
+    newCustomers: 3,
+    walkIns: 1,
+    dailyAcquisition: 4,
+    submittedAt: new Date("2026-10-05T08:00:00Z"),
+    updatedAt: new Date("2026-10-05T08:00:00Z"),
+  };
+  const laterReport = {
+    ...previousReport,
+    id: "report-later",
+    date: "2026-10-06",
+    salesRevenue: 50_000,
+    newCustomers: 50,
+    walkIns: 50,
+    submittedAt: new Date("2026-10-06T08:00:00Z"),
+    updatedAt: new Date("2026-10-06T08:00:00Z"),
+  };
+  const model = calculateDailyReportModel({
+    reportDate: new Date("2026-10-05T00:00:00Z"),
+    activeUsers: [
+      { id: "sales-1", name: "Sales Person" },
+      { id: "sales-2", name: "No Submission" },
+    ],
+    reports: [selectedReport],
+    monthToDateReports: [previousReport, selectedReport, laterReport],
+    targets: [],
+    previousReportsByUser: new Map([["sales-1", previousReport]]),
+  });
+
+  assert.equal(model.reportDate, "2026-10-05");
+  assert.equal(model.submitted, 1);
+  assert.equal(model.pending, 1);
+  assert.equal(model.rows[0].revenueSummary.dailyRevenue, 20_000);
+  assert.equal(model.rows[0].revenueSummary.monthToDateRevenue, 30_000);
+  assert.equal(model.rows[0].revenueSummary.previousDay, 10_000);
+  assert.equal(
+    model.rows[0].revenueSummary.changeAgainstPreviousDay,
+    "100%",
+  );
+  assert.equal(model.rows[0].customerSummary.monthlyAcquisition, 7);
+  assert.equal(model.teamTotals.actual, 30_000);
+  assert.equal(model.rows[1].status, "Not Submitted");
+});

@@ -138,7 +138,6 @@ export default function AdminShell({
   salesByPersonnel,
   targetAchievement,
   users,
-  reports,
   targets,
 }: AdminShellProps) {
   const [activeSection, setActiveSection] = useState<Section>("Dashboard");
@@ -2412,7 +2411,6 @@ export default function AdminShell({
     salesByPersonnel,
     targetAchievement,
     users,
-    reports,
     targets,
     userForm,
     targetForm,
