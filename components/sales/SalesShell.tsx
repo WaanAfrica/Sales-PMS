@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Bell, Menu, Search, UserCircle2, X } from "lucide-react";
 import SalesSidebar from "./SalesSidebar";
 import SalesStatCards from "./SalesStatCards";
@@ -79,16 +79,13 @@ type SalesShellProps = {
   todaysReport?: SalesReportItem;
 };
 
-const sections = [
-  "Dashboard",
-  "Daily Report",
-  "My Reports",
-  "My Performance",
-  "Company Values",
-  "Profile",
-] as const;
-
-type Section = (typeof sections)[number];
+type Section =
+  | "Dashboard"
+  | "Daily Report"
+  | "My Reports"
+  | "My Performance"
+  | "Company Values"
+  | "Profile";
 
 export default function SalesShell({
   userName,
@@ -111,11 +108,10 @@ export default function SalesShell({
   const [selectedReport, setSelectedReport] = useState<SalesReportItem | null>(
     null,
   );
+  const [editingReport, setEditingReport] = useState<SalesReportItem | null>(
+    null,
+  );
   const [submissionLocked, setSubmissionLocked] = useState(todayReported);
-
-  useEffect(() => {
-    if (todayReported) setSubmissionLocked(true);
-  }, [todayReported]);
 
   const formattedTodayRevenue = useMemo(
     () =>
@@ -214,7 +210,7 @@ export default function SalesShell({
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
-                    Today's summary
+                    Today&apos;s summary
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold text-slate-900">
                     Key metrics
@@ -339,9 +335,17 @@ export default function SalesShell({
         return (
           <div className="space-y-6">
             <SalesDailyReportForm
-              report={todaysReport}
-              isSubmitted={submissionLocked}
-              onSubmitted={() => setSubmissionLocked(true)}
+              key={editingReport?.id ?? todaysReport?.id ?? "new-daily-report"}
+              report={editingReport ?? todaysReport}
+              isSubmitted={submissionLocked || todayReported}
+              isEditing={editingReport !== null}
+              onSubmitted={() => {
+                if (!editingReport || editingReport.id === todaysReport?.id) {
+                  setSubmissionLocked(true);
+                }
+                setEditingReport(null);
+              }}
+              onCancelEdit={() => setEditingReport(null)}
             />
           </div>
         );
@@ -623,6 +627,11 @@ export default function SalesShell({
     todaysReport,
     userName,
     setSelectedReport,
+    achievementDisplay,
+    customerGrowthPercent,
+    editingReport,
+    monthlyWinRate,
+    pipelineTrend,
   ]);
 
   const sidebarWidthClass = sidebarCollapsed ? "md:ml-20" : "md:ml-[280px]";
@@ -776,6 +785,19 @@ export default function SalesShell({
                 </dd>
               </div>
             </dl>
+            <div className="mt-6 flex justify-end border-t border-slate-200 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingReport(selectedReport);
+                  setSelectedReport(null);
+                  setActiveSection("Daily Report");
+                }}
+                className="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Edit report
+              </button>
+            </div>
           </section>
         </div>
       ) : null}

@@ -85,11 +85,15 @@ export async function updateDailyReport(
   if (!existing || existing.userId !== session.user.id) {
     throw new Error("Report not found");
   }
-  if (existing.status === "SUBMITTED") {
-    throw new Error("This report has already been submitted");
-  }
 
-  if (parsed.data.date !== getEastAfricaDateKey()) {
+  const isSubmitted = existing.status === "SUBMITTED";
+  if (
+    isSubmitted &&
+    parsed.data.date !== existing.date.toISOString().slice(0, 10)
+  ) {
+    throw new Error("You cannot change the date of a submitted report");
+  }
+  if (!isSubmitted && parsed.data.date !== getEastAfricaDateKey()) {
     throw new Error("You can only edit today's report");
   }
 
@@ -111,10 +115,12 @@ export async function updateDailyReport(
       accountsReceivable: parsed.data.accountsReceivable,
       opportunities: parsed.data.opportunities ?? null,
       challenges: parsed.data.challenges ?? null,
-      status: options?.submit ? "SUBMITTED" : "DRAFT",
-      submittedAt: options?.submit
-        ? (existing.submittedAt ?? new Date())
-        : existing.submittedAt,
+      status: isSubmitted || options?.submit ? "SUBMITTED" : "DRAFT",
+      submittedAt: isSubmitted
+        ? existing.submittedAt
+        : options?.submit
+          ? new Date()
+          : existing.submittedAt,
     },
   });
 

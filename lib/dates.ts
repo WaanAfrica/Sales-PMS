@@ -18,6 +18,15 @@ export function dateKeyToUtcDate(dateKey: string): Date {
   return new Date(`${dateKey.slice(0, 10)}T00:00:00.000Z`);
 }
 
+export function isValidDateKey(dateKey: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false;
+  const date = dateKeyToUtcDate(dateKey);
+  return (
+    Number.isFinite(date.getTime()) &&
+    date.toISOString().slice(0, 10) === dateKey
+  );
+}
+
 export function utcMonthStart(year: number, month: number): Date {
   return new Date(Date.UTC(year, month - 1, 1));
 }

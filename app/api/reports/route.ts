@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { requireRole } from "../../../lib/auth";
-import { dateKeyToUtcDate, utcMonthStart } from "../../../lib/dates";
+import {
+  dateKeyToUtcDate,
+  isValidDateKey,
+  utcMonthStart,
+} from "../../../lib/dates";
 import {
   calculateDailyReportModel,
   calculateMonthlyReportModel,
@@ -57,8 +61,11 @@ export async function GET(request: Request) {
   }
 
   const reportDate = searchParams.get("date");
-  if (!reportDate) {
-    return NextResponse.json({ error: "date is required" }, { status: 400 });
+  if (!reportDate || !isValidDateKey(reportDate)) {
+    return NextResponse.json(
+      { error: "date must be a valid date in YYYY-MM-DD format" },
+      { status: 400 },
+    );
   }
 
   const selectedDate = dateKeyToUtcDate(reportDate);

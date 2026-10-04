@@ -10,7 +10,7 @@ import {
   UserCircle2,
   X,
 } from "lucide-react";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { useEffect } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -21,6 +21,7 @@ import {
   deleteUser,
 } from "../../actions/daily-report";
 import { calculateAchievementPercent } from "../../lib/calculations/reporting";
+import { companyReportContent } from "../../lib/company-report-content";
 import { formatDateInEastAfrica, getEastAfricaDateKey } from "../../lib/dates";
 import DashboardOverview from "./DashboardOverview";
 import DashboardChart from "./DashboardChart";
@@ -91,6 +92,23 @@ type TargetItem = {
   };
 };
 
+type SubmittedDailyReport = {
+  date: string | Date;
+  salesRevenue: number;
+  repeatCustomers: number;
+  newCustomers: number;
+  walkIns: number;
+  dailyAcquisition: number;
+  newQuotations: number;
+  closedQuotations: number;
+  hotQuotationValue: number;
+  salesPipelineValue: number;
+  accountsReceivable: number;
+  opportunities: string | null;
+  challenges: string | null;
+  submittedAt: string | Date | null;
+};
+
 type AdminShellProps = {
   currentUserId: string;
   summaryCards: SummaryCard[];
@@ -99,23 +117,19 @@ type AdminShellProps = {
   targetAchievement: TargetAchievementItem[];
   users: UserItem[];
   reports: ReportItem[];
-  monthlyReports: ReportItem[];
   targets: TargetItem[];
 };
 
-const sections = [
-  "Dashboard",
-  "Daily Reports",
-  "Performance",
-  "Users",
-  "Targets",
-  "Reports",
-  "Company Values",
-  "Profile",
-  "Settings",
-] as const;
-
-type Section = (typeof sections)[number];
+type Section =
+  | "Dashboard"
+  | "Daily Reports"
+  | "Performance"
+  | "Users"
+  | "Targets"
+  | "Reports"
+  | "Company Values"
+  | "Profile"
+  | "Settings";
 
 export default function AdminShell({
   currentUserId,
@@ -125,7 +139,6 @@ export default function AdminShell({
   targetAchievement,
   users,
   reports,
-  monthlyReports,
   targets,
 }: AdminShellProps) {
   const [activeSection, setActiveSection] = useState<Section>("Dashboard");
@@ -181,6 +194,7 @@ export default function AdminShell({
       userId: string;
       name: string;
       status: string;
+      report?: SubmittedDailyReport;
       revenueSummary: {
         target: number;
         actual: number;
@@ -225,6 +239,9 @@ export default function AdminShell({
       winRate: string | number;
     };
   } | null>(null);
+  const [isReportLoading, setIsReportLoading] = useState(true);
+  const [reportError, setReportError] = useState("");
+  const reportRequestController = useRef<AbortController | null>(null);
   const [selectedReport, setSelectedReport] = useState<
     NonNullable<typeof reportSummary>["rows"][number] | null
   >(null);
@@ -258,7 +275,9 @@ export default function AdminShell({
   );
 
   const refreshReportSummary = useCallback(() => {
+    reportRequestController.current?.abort();
     const controller = new AbortController();
+    reportRequestController.current = controller;
     const queryParams = new URLSearchParams();
     if (reportType === "Monthly Report") {
       queryParams.set("type", "monthly");
@@ -272,9 +291,40 @@ export default function AdminShell({
     fetch(`/api/reports?${queryParams.toString()}`, {
       signal: controller.signal,
     })
-      .then((response) => response.json())
-      .then((data) => setReportSummary(data))
-      .catch(() => setReportSummary(null));
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            typeof data.error === "string"
+              ? data.error
+              : "Unable to generate the report.",
+          );
+        }
+        return data;
+      })
+      .then((data) => {
+        setReportSummary(data);
+        if (reportType === "Daily Report" && data.submitted === 0) {
+          setReportError(
+            "No submitted sales reports found for the selected date.",
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setReportSummary(null);
+        setReportError(
+          error instanceof Error
+            ? error.message
+            : "Unable to generate the report.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsReportLoading(false);
+          reportRequestController.current = null;
+        }
+      });
 
     return () => controller.abort();
   }, [reportType, selectedDate, selectedMonth, selectedYear]);
@@ -284,8 +334,26 @@ export default function AdminShell({
     return () => cleanup?.();
   }, [refreshReportSummary]);
 
+  const reportSummaryMatchesSelection =
+    reportSummary !== null &&
+    (reportType === "Daily Report"
+      ? reportSummary.reportDate === selectedDate
+      : reportSummary.month === selectedMonth &&
+        reportSummary.year === selectedYear);
+  const canExportReport =
+    reportSummaryMatchesSelection &&
+    reportSummary !== null &&
+    reportSummary.submitted > 0 &&
+    !isReportLoading;
+
   const handleExportExcel = useCallback(() => {
-    if (!reportSummary) return;
+    if (
+      !reportSummary ||
+      !reportSummaryMatchesSelection ||
+      reportSummary.submitted === 0
+    ) {
+      return;
+    }
 
     const period =
       reportType === "Monthly Report"
@@ -293,7 +361,7 @@ export default function AdminShell({
             `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
             { month: "long", year: "numeric" },
           )
-        : formatDateInEastAfrica(selectedDate, {
+        : formatDateInEastAfrica(reportSummary.reportDate ?? selectedDate, {
             day: "2-digit",
             month: "long",
             year: "numeric",
@@ -302,6 +370,19 @@ export default function AdminShell({
     const money = (value: number) =>
       `KES ${value.toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
     const rows: Array<Array<string | number>> = [
+      [companyReportContent.coreValuesTitle],
+      [companyReportContent.valuesStatement],
+    ];
+    const coreValueRows: number[] = [];
+    companyReportContent.coreValues.forEach((value) => {
+      coreValueRows.push(rows.length);
+      rows.push([
+        `${value.letter} – ${value.title}`,
+        value.description,
+      ]);
+    });
+    rows.push(
+      [],
       ["SALES PMS"],
       [title],
       [
@@ -316,8 +397,6 @@ export default function AdminShell({
         `Pending: ${reportSummary.pending}`,
         `Drafts: ${reportSummary.drafts}`,
       ],
-      ["Together We CREATE IT, Together We Win."],
-      [],
       ["TEAM PERFORMANCE SUMMARY"],
       ["Total Revenue (MTD)", money(reportSummary.teamTotals.actual)],
       ["Team Target", money(reportSummary.teamTotals.target)],
@@ -340,7 +419,7 @@ export default function AdminShell({
       ["SUBMISSION STATUS"],
       ...reportSummary.rows.map((row) => [row.name, row.status]),
       [],
-    ];
+    );
 
     reportSummary.rows.forEach((row) => {
       rows.push([row.name.toUpperCase(), row.status]);
@@ -469,6 +548,27 @@ export default function AdminShell({
       ["Receivables", money(reportSummary.teamTotals.receivables)],
       ["Win Rate", String(reportSummary.teamTotals.winRate ?? "-")],
     );
+    rows.push([], [companyReportContent.salesEthosTitle]);
+    const salesEthosRows: number[] = [];
+    companyReportContent.salesEthos.forEach((item) => {
+      salesEthosRows.push(rows.length);
+      rows.push([item.title, item.description]);
+    });
+    const salesPmsTitleRow = rows.findIndex((row) => row[0] === "SALES PMS");
+    const reportTitleRow = rows.findIndex((row) => row[0] === title);
+    const reportHeaderRows = [
+      salesPmsTitleRow,
+      reportTitleRow,
+      salesPmsTitleRow + 2,
+      salesPmsTitleRow + 3,
+    ];
+    const reportTitleRows = [...reportHeaderRows, salesPmsTitleRow + 4];
+    const companyValuesTitleRow = 0;
+    const companyStatementRow = 1;
+    const companyValuesRows = coreValueRows;
+    const salesEthosTitleRow = rows.findIndex(
+      (row) => row[0] === companyReportContent.salesEthosTitle,
+    );
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
     worksheet["!cols"] = [
@@ -480,14 +580,20 @@ export default function AdminShell({
       { wch: 16 },
       { wch: 22 },
     ];
+    const mergeAcrossReport = (rowIndex: number) =>
+      XLSX.utils.decode_range(`A${rowIndex + 1}:G${rowIndex + 1}`);
+    const mergeDescription = (rowIndex: number) =>
+      XLSX.utils.decode_range(`B${rowIndex + 1}:G${rowIndex + 1}`);
     worksheet["!merges"] = [
-      "A1:G1",
-      "A2:G2",
-      "A3:G3",
-      "A4:G4",
-      "A6:G6",
-      "A8:G8",
-    ].map((range) => XLSX.utils.decode_range(range));
+      companyValuesTitleRow,
+      companyStatementRow,
+      ...reportHeaderRows,
+      salesEthosTitleRow,
+    ]
+      .map(mergeAcrossReport)
+      .concat(
+        [...salesEthosRows, ...companyValuesRows].map(mergeDescription),
+      );
     worksheet["!freeze"] = { xSplit: 0, ySplit: 1 };
     worksheet["!pageSetup"] = {
       orientation: "landscape",
@@ -503,8 +609,12 @@ export default function AdminShell({
       header: 0.2,
       footer: 0.2,
     };
-    worksheet["!rows"] = rows.map((row) => ({
-      hpt: row.length === 0 ? 8 : 20,
+    worksheet["!rows"] = rows.map((row, rowIndex) => ({
+      hpt: row.length === 0
+        ? 8
+        : companyValuesRows.includes(rowIndex) || salesEthosRows.includes(rowIndex)
+          ? 36
+          : 20,
     }));
 
     const reportRange = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1:G1");
@@ -520,14 +630,23 @@ export default function AdminShell({
       const firstCell =
         worksheet[XLSX.utils.encode_cell({ r: rowIndex, c: 0 })];
       const firstValue = String(firstCell?.v ?? "");
-      const isTitle = rowIndex <= 5;
+      const isTitle =
+        rowIndex === companyValuesTitleRow ||
+        reportTitleRows.includes(rowIndex) ||
+        rowIndex === salesEthosTitleRow;
       const isSection =
         [
           "TEAM PERFORMANCE SUMMARY",
           "SUBMISSION STATUS",
           "TEAM TOTAL",
-        ].includes(firstValue) || /^[A-Z][A-Z .'-]+$/.test(firstValue);
+          companyReportContent.coreValuesTitle,
+          companyReportContent.salesEthosTitle,
+        ].includes(firstValue) ||
+        /^[A-Z][A-Z .'-]+$/.test(firstValue);
       const isTableHeader = firstValue === "Metric";
+      const isCompanyContent =
+        companyValuesRows.includes(rowIndex) ||
+        salesEthosRows.includes(rowIndex);
       for (
         let columnIndex = reportRange.s.c;
         columnIndex <= reportRange.e.c;
@@ -539,20 +658,24 @@ export default function AdminShell({
         cell.s = {
           font: {
             name: "Aptos",
-            sz: isTitle ? 14 : 10,
-            bold: isTitle || isSection || isTableHeader,
+            sz: isTitle ? 14 : isCompanyContent ? 9 : 10,
+            bold: isTitle || isSection || isTableHeader || isCompanyContent,
             color: {
-              rgb: isTitle || isSection || isTableHeader ? "FFFFFF" : darkText,
+              rgb:
+                isTitle || isSection || isTableHeader
+                  ? "FFFFFF"
+                  : darkText,
             },
           },
           fill: {
             patternType: "solid",
             fgColor: {
-              rgb:
-                isTitle || isSection
-                  ? blue
-                  : isTableHeader
-                    ? lightBlue
+              rgb: isTitle || isSection
+                ? blue
+                : isTableHeader
+                  ? lightBlue
+                  : isCompanyContent
+                    ? "F8FAFC"
                     : "FFFFFF",
             },
           },
@@ -580,9 +703,22 @@ export default function AdminShell({
       compression: true,
       bookSST: true,
     });
-  }, [reportSummary, reportType, selectedDate, selectedMonth, selectedYear]);
+  }, [
+    reportSummary,
+    reportSummaryMatchesSelection,
+    reportType,
+    selectedDate,
+    selectedMonth,
+    selectedYear,
+  ]);
   const handleExportPDF = useCallback(() => {
-    if (!reportSummary) return;
+    if (
+      !reportSummary ||
+      !reportSummaryMatchesSelection ||
+      reportSummary.submitted === 0
+    ) {
+      return;
+    }
 
     const period =
       reportType === "Monthly Report"
@@ -590,7 +726,7 @@ export default function AdminShell({
             `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
             { month: "long", year: "numeric" },
           )
-        : formatDateInEastAfrica(selectedDate, {
+        : formatDateInEastAfrica(reportSummary.reportDate ?? selectedDate, {
             day: "2-digit",
             month: "long",
             year: "numeric",
@@ -607,13 +743,53 @@ export default function AdminShell({
     });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(companyReportContent.coreValuesTitle, 40, 30);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(companyReportContent.valuesStatement, 40, 48);
+    autoTable(doc, {
+      startY: 60,
+      body: companyReportContent.coreValues.map((value) => [
+        `${value.letter} – ${value.title}`,
+        value.description,
+      ]),
+      theme: "grid",
+      tableWidth: pageWidth - 80,
+      margin: { left: 40, right: 40, bottom: 36 },
+      styles: {
+        fontSize: 8,
+        cellPadding: 3.5,
+        overflow: "linebreak",
+        textColor: [15, 23, 42],
+        lineColor: [203, 213, 225],
+        lineWidth: 0.35,
+        valign: "middle",
+      },
+      columnStyles: {
+        0: { cellWidth: 175, fontStyle: "bold" },
+        1: { cellWidth: pageWidth - 255 },
+      },
+      pageBreak: "avoid",
+      rowPageBreak: "avoid",
+    });
+    const coreValuesEndY =
+      (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+        ?.finalY ?? 60;
+    let reportHeaderY = coreValuesEndY + 16;
+    if (reportHeaderY + 240 > pageHeight - 36) {
+      doc.addPage();
+      reportHeaderY = 34;
+    }
     doc.setFillColor(37, 99, 235);
-    doc.rect(0, 0, pageWidth, 68, "F");
+    doc.rect(0, reportHeaderY, pageWidth, 58, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
-    doc.text("SALES PMS", 40, 30);
+    doc.text("SALES PMS", 40, reportHeaderY + 22);
     doc.setFontSize(13);
-    doc.text(title, 40, 52);
+    doc.text(title, 40, reportHeaderY + 44);
     doc.setTextColor(15, 23, 42);
 
     const summaryMetrics: Array<[string, string]> = [
@@ -651,7 +827,7 @@ export default function AdminShell({
     );
 
     autoTable(doc, {
-      startY: 82,
+      startY: reportHeaderY + 70,
       head: [["Metric", "Value", "Metric", "Value"]],
       body: summaryRows,
       theme: "grid",
@@ -683,7 +859,7 @@ export default function AdminShell({
 
     const summaryTableEndY =
       (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
-        ?.finalY ?? 82;
+        ?.finalY ?? reportHeaderY + 70;
     const personnelRows = reportSummary.rows.flatMap((row) => {
       const name = `${row.name} (${row.status})`;
       if (row.status !== "Submitted") {
@@ -844,12 +1020,54 @@ export default function AdminShell({
       rowPageBreak: "avoid",
     });
 
+    const personnelTableEndY =
+      (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+        ?.finalY ?? summaryTableEndY + 14;
+    let salesEthosY = personnelTableEndY + 18;
+    if (salesEthosY + 200 > pageHeight - 36) {
+      doc.addPage();
+      salesEthosY = 40;
+    }
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(companyReportContent.salesEthosTitle, 40, salesEthosY + 12);
+    autoTable(doc, {
+      startY: salesEthosY + 20,
+      body: companyReportContent.salesEthos.map((item) => [
+        item.title,
+        item.description,
+      ]),
+      theme: "grid",
+      tableWidth: pageWidth - 80,
+      margin: { left: 40, right: 40, bottom: 36 },
+      styles: {
+        fontSize: 8,
+        cellPadding: 4,
+        overflow: "linebreak",
+        textColor: [15, 23, 42],
+        lineColor: [203, 213, 225],
+        lineWidth: 0.35,
+        valign: "middle",
+      },
+      columnStyles: {
+        0: { cellWidth: 175, fontStyle: "bold" },
+        1: { cellWidth: pageWidth - 255 },
+      },
+      pageBreak: "avoid",
+      rowPageBreak: "avoid",
+    });
+
     const pages = doc.getNumberOfPages();
     for (let page = 1; page <= pages; page += 1) {
       doc.setPage(page);
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
-      doc.text("Together We CREATE IT, Together We Win.", 40, pageHeight - 24);
+      doc.text(
+        companyReportContent.valuesStatement,
+        40,
+        pageHeight - 24,
+      );
       doc.text(`Page ${page} of ${pages}`, pageWidth - 92, pageHeight - 24);
     }
     const filename =
@@ -857,7 +1075,14 @@ export default function AdminShell({
         ? `Monthly_Sales_Performance_Report_${selectedYear}-${String(selectedMonth).padStart(2, "0")}.pdf`
         : `Daily_Sales_Performance_Report_${selectedDate}.pdf`;
     doc.save(filename);
-  }, [reportSummary, reportType, selectedDate, selectedMonth, selectedYear]);
+  }, [
+    reportSummary,
+    reportSummaryMatchesSelection,
+    reportType,
+    selectedDate,
+    selectedMonth,
+    selectedYear,
+  ]);
   const sectionContent = useMemo(() => {
     switch (activeSection) {
       case "Dashboard":
@@ -988,10 +1213,15 @@ export default function AdminShell({
                           KES {row.revenueSummary.actual.toLocaleString()}
                         </td>
                         <td className="px-4 py-4">
-                          <button className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
-                            {row.status === "Submitted"
-                              ? "View"
-                              : "Not Submitted"}
+                          <button
+                            type="button"
+                            disabled={
+                              row.status !== "Submitted" || !row.report
+                            }
+                            onClick={() => setSelectedReport(row)}
+                            className="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {row.status === "Submitted" ? "View" : "Not Submitted"}
                           </button>
                         </td>
                       </tr>
@@ -1000,6 +1230,134 @@ export default function AdminShell({
                 </table>
               </div>
             </div>
+            {selectedReport?.report ? (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget) {
+                    setSelectedReport(null);
+                  }
+                }}
+              >
+                <section
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="daily-submitted-report-title"
+                  className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+                >
+                  <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase text-emerald-700">
+                        Submitted daily report
+                      </p>
+                      <h2
+                        id="daily-submitted-report-title"
+                        className="mt-1 text-xl font-semibold text-slate-950"
+                      >
+                        {selectedReport.name}
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {formatDateInEastAfrica(
+                          selectedReport.report.date,
+                          {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          },
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReport(null)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+                      aria-label="Close submitted report"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <dl className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                    {[
+                      [
+                        "Sales revenue",
+                        `KES ${selectedReport.report.salesRevenue.toLocaleString("en-KE")}`,
+                      ],
+                      [
+                        "Repeat customers",
+                        String(selectedReport.report.repeatCustomers),
+                      ],
+                      [
+                        "New customers",
+                        String(selectedReport.report.newCustomers),
+                      ],
+                      ["Walk-ins", String(selectedReport.report.walkIns)],
+                      [
+                        "Daily acquisition",
+                        String(selectedReport.report.dailyAcquisition),
+                      ],
+                      [
+                        "New quotations",
+                        String(selectedReport.report.newQuotations),
+                      ],
+                      [
+                        "Closed quotations",
+                        String(selectedReport.report.closedQuotations),
+                      ],
+                      [
+                        "Hot quotation value",
+                        `KES ${selectedReport.report.hotQuotationValue.toLocaleString("en-KE")}`,
+                      ],
+                      [
+                        "Sales pipeline value",
+                        `KES ${selectedReport.report.salesPipelineValue.toLocaleString("en-KE")}`,
+                      ],
+                      [
+                        "Accounts receivable",
+                        `KES ${selectedReport.report.accountsReceivable.toLocaleString("en-KE")}`,
+                      ],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="border-b border-slate-100 pb-3"
+                      >
+                        <dt className="text-sm text-slate-500">{label}</dt>
+                        <dd className="mt-1 font-medium text-slate-900">
+                          {value}
+                        </dd>
+                      </div>
+                    ))}
+                    {[
+                      ["Opportunities", selectedReport.report.opportunities],
+                      ["Challenges", selectedReport.report.challenges],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="border-b border-slate-100 pb-3 sm:col-span-2"
+                      >
+                        <dt className="text-sm text-slate-500">{label}</dt>
+                        <dd className="mt-1 whitespace-pre-wrap font-medium text-slate-900">
+                          {value || "-"}
+                        </dd>
+                      </div>
+                    ))}
+                    <div className="border-b border-slate-100 pb-3 sm:col-span-2">
+                      <dt className="text-sm text-slate-500">Submitted at</dt>
+                      <dd className="mt-1 font-medium text-slate-900">
+                        {selectedReport.report.submittedAt
+                          ? new Intl.DateTimeFormat("en-KE", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                              timeZone: "Africa/Nairobi",
+                            }).format(
+                              new Date(selectedReport.report.submittedAt),
+                            )
+                          : "-"}
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+              </div>
+            ) : null}
           </div>
         );
       case "Users":
@@ -1033,7 +1391,7 @@ export default function AdminShell({
                             role: "SALES",
                             active: true,
                           });
-                        } catch (error) {
+                        } catch {
                           setActionMessage("Unable to create salesperson.");
                         }
                       });
@@ -1216,7 +1574,7 @@ export default function AdminShell({
                         try {
                           await assignTargets(targetForm);
                           setActionMessage("Target assigned successfully.");
-                        } catch (error) {
+                        } catch {
                           setActionMessage("Unable to assign target.");
                         }
                       });
@@ -1344,22 +1702,30 @@ export default function AdminShell({
                 <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={refreshReportSummary}
-                    className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+                    onClick={() => {
+                      setIsReportLoading(true);
+                      setReportSummary(null);
+                      setReportError("");
+                      refreshReportSummary();
+                    }}
+                    disabled={isReportLoading}
+                    className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                   >
-                    Generate Report
+                    {isReportLoading ? "Generating..." : "Generate Report"}
                   </button>
                   <button
                     type="button"
                     onClick={handleExportExcel}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    disabled={!canExportReport}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Export Excel
                   </button>
                   <button
                     type="button"
                     onClick={handleExportPDF}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    disabled={!canExportReport}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Export PDF
                   </button>
@@ -1370,11 +1736,14 @@ export default function AdminShell({
                   <span>Report type</span>
                   <select
                     value={reportType}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setReportSummary(null);
+                      setReportError("");
+                      setIsReportLoading(true);
                       setReportType(
                         event.target.value as "Daily Report" | "Monthly Report",
-                      )
-                    }
+                      );
+                    }}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
                   >
                     <option value="Daily Report">Daily Report</option>
@@ -1387,7 +1756,12 @@ export default function AdminShell({
                     <input
                       type="date"
                       value={selectedDate}
-                      onChange={(event) => setSelectedDate(event.target.value)}
+                      onChange={(event) => {
+                        setReportSummary(null);
+                        setReportError("");
+                        setIsReportLoading(true);
+                        setSelectedDate(event.target.value);
+                      }}
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
                     />
                   </label>
@@ -1397,9 +1771,12 @@ export default function AdminShell({
                       <span>Month</span>
                       <select
                         value={selectedMonth}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          setReportSummary(null);
+                          setReportError("");
+                          setIsReportLoading(true);
                           setSelectedMonth(Number(event.target.value))
-                        }
+                        }}
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
                       >
                         {Array.from(
@@ -1418,9 +1795,12 @@ export default function AdminShell({
                       <span>Year</span>
                       <select
                         value={selectedYear}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          setReportSummary(null);
+                          setReportError("");
+                          setIsReportLoading(true);
                           setSelectedYear(Number(event.target.value))
-                        }
+                        }}
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none"
                       >
                         {Array.from(
@@ -1444,6 +1824,29 @@ export default function AdminShell({
                   </p>
                 </div>
               </div>
+              {reportError ? (
+                <p
+                  className={`mt-4 rounded-2xl px-4 py-3 text-sm ${reportError.startsWith("No submitted sales reports") ? "bg-amber-50 text-amber-800" : "bg-red-50 text-red-800"}`}
+                  role="status"
+                >
+                  {reportError}
+                </p>
+              ) : null}
+              {reportSummaryMatchesSelection && reportSummary ? (
+                <p className="mt-4 text-sm text-slate-600">
+                  Report date:{" "}
+                  {reportType === "Daily Report"
+                    ? formatDateInEastAfrica(reportSummary.reportDate ?? selectedDate, {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })
+                    : formatDateInEastAfrica(
+                        `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
+                        { month: "long", year: "numeric" },
+                      )}
+                </p>
+              ) : null}
               <div className="mt-6 grid gap-4 lg:grid-cols-2">
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                   <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-500">
@@ -2015,6 +2418,22 @@ export default function AdminShell({
     targetForm,
     actionMessage,
     showPassword,
+    canExportReport,
+    currentUserId,
+    handleExportExcel,
+    handleExportPDF,
+    isPending,
+    isReportLoading,
+    performanceRows,
+    refreshReportSummary,
+    reportError,
+    reportSummary,
+    reportSummaryMatchesSelection,
+    reportType,
+    selectedDate,
+    selectedMonth,
+    selectedReport,
+    selectedYear,
   ]);
 
   return (

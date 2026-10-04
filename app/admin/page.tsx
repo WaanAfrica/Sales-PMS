@@ -207,7 +207,6 @@ export default async function AdminPage() {
           targetAchievement={targetAchievement}
           users={users}
           reports={reports}
-          monthlyReports={monthlyReports}
           targets={targets}
         />
       </div>
