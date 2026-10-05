@@ -742,15 +742,18 @@ export default function AdminShell({
     });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    doc.setTextColor(15, 23, 42);
+    doc.setFillColor(37, 99, 235);
+    doc.rect(0, 12, pageWidth, 30, "F");
+    doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.text(companyReportContent.coreValuesTitle, 40, 30);
+    doc.setFontSize(14);
+    doc.text(companyReportContent.coreValuesTitle, 40, 32);
+    doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(companyReportContent.valuesStatement, 40, 48);
+    doc.text(companyReportContent.valuesStatement, 40, 57);
     autoTable(doc, {
-      startY: 60,
+      startY: 66,
       body: companyReportContent.coreValues.map((value) => [
         `${value.letter} – ${value.title}`,
         value.description,
@@ -1023,16 +1026,19 @@ export default function AdminShell({
       (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
         ?.finalY ?? summaryTableEndY + 14;
     let salesEthosY = personnelTableEndY + 18;
-    if (salesEthosY + 200 > pageHeight - 36) {
+    if (salesEthosY + 220 > pageHeight - 36) {
       doc.addPage();
       salesEthosY = 40;
     }
-    doc.setTextColor(15, 23, 42);
+    doc.setFillColor(37, 99, 235);
+    doc.rect(0, salesEthosY, pageWidth, 28, "F");
+    doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text(companyReportContent.salesEthosTitle, 40, salesEthosY + 12);
+    doc.setFontSize(13);
+    doc.text(companyReportContent.salesEthosTitle, 40, salesEthosY + 19);
+    doc.setTextColor(15, 23, 42);
     autoTable(doc, {
-      startY: salesEthosY + 20,
+      startY: salesEthosY + 32,
       body: companyReportContent.salesEthos.map((item) => [
         item.title,
         item.description,
