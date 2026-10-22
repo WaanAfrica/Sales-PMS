@@ -219,6 +219,14 @@ test("historical daily reports use selected-date data and exclude later reports 
     submittedAt: new Date("2026-10-05T08:00:00Z"),
     updatedAt: new Date("2026-10-05T08:00:00Z"),
   };
+  const draftReport = {
+    ...selectedReport,
+    id: "report-draft",
+    userId: "sales-2",
+    salesRevenue: 90_000,
+    status: "DRAFT" as const,
+    submittedAt: null,
+  };
   const laterReport = {
     ...previousReport,
     id: "report-later",
@@ -233,9 +241,10 @@ test("historical daily reports use selected-date data and exclude later reports 
     reportDate: new Date("2026-10-05T00:00:00Z"),
     activeUsers: [
       { id: "sales-1", name: "Sales Person" },
-      { id: "sales-2", name: "No Submission" },
+      { id: "sales-2", name: "Draft Person" },
+      { id: "sales-3", name: "No Submission" },
     ],
-    reports: [selectedReport],
+    reports: [selectedReport, draftReport],
     monthToDateReports: [previousReport, selectedReport, laterReport],
     targets: [],
     previousReportsByUser: new Map([["sales-1", previousReport]]),
@@ -244,6 +253,7 @@ test("historical daily reports use selected-date data and exclude later reports 
   assert.equal(model.reportDate, "2026-10-05");
   assert.equal(model.submitted, 1);
   assert.equal(model.pending, 1);
+  assert.equal(model.drafts, 1);
   assert.equal(model.rows[0].revenueSummary.dailyRevenue, 20_000);
   assert.equal(model.rows[0].revenueSummary.monthToDateRevenue, 30_000);
   assert.equal(model.rows[0].revenueSummary.previousDay, 10_000);
@@ -253,5 +263,8 @@ test("historical daily reports use selected-date data and exclude later reports 
   );
   assert.equal(model.rows[0].customerSummary.monthlyAcquisition, 7);
   assert.equal(model.teamTotals.actual, 30_000);
-  assert.equal(model.rows[1].status, "Not Submitted");
+  assert.equal(model.teamTotals.dailyRevenue, 20_000);
+  assert.equal(model.rows[1].status, "Draft");
+  assert.equal(model.rows[1].revenueSummary.dailyRevenue, 90_000);
+  assert.equal(model.rows[2].status, "Not Submitted");
 });

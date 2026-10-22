@@ -56,6 +56,7 @@ export type DailyReportModel = {
   teamTotals: {
     target: number;
     actual: number;
+    dailyRevenue: number;
     monthToDateRevenue: number;
     varianceAmount: number;
     variancePercentage: number | string;
@@ -271,6 +272,11 @@ export function calculateTeamTotals(rows: SalespersonReportRow[]) {
     (sum, row) => sum + safeNonNegativeNumber(row.revenueSummary.actual),
     0,
   );
+  const dailyRevenue = submittedRows.reduce(
+    (sum, row) =>
+      sum + safeNonNegativeNumber(row.revenueSummary.dailyRevenue),
+    0,
+  );
   const monthToDateRevenue = rows.reduce(
     (sum, row) =>
       sum + safeNonNegativeNumber(row.revenueSummary.monthToDateRevenue),
@@ -324,6 +330,7 @@ export function calculateTeamTotals(rows: SalespersonReportRow[]) {
   return {
     target,
     actual,
+    dailyRevenue,
     monthToDateRevenue,
     varianceAmount: variance.amount,
     variancePercentage: variance.percentage,

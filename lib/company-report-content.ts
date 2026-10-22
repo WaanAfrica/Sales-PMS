@@ -2,83 +2,79 @@ const companyName = "AT MATRIX";
 
 export const companyReportContent = {
   companyName,
-  valuesStatement: "“Together We CREATE IT, Together We Win.”",
+  valuesStatement: "At Matrix, we live by “CREATE IT” values.",
   coreValuesTitle: `${companyName} COMPANY VALUES`,
   coreValues: [
     {
       letter: "C",
-      title: "Customer Focus",
-      description:
-        "We put the customer at the center of everything we do, ensuring satisfaction and loyalty.",
+      title: "Customer Centric",
+      description: "We create value by understanding and solving customer needs.",
     },
     {
       letter: "R",
-      title: "Respect and Integrity",
-      description:
-        "We treat everyone — colleagues, customers, and partners — with dignity, fairness, and appreciation, and we act with complete honesty.",
-    },
-    {
-      letter: "E",
-      title: "Efficiency",
-      description:
-        "We optimize resources, time, and processes to achieve the best results with speed and precision.",
-    },
-    {
-      letter: "A",
-      title: "Accountability",
-      description:
-        "We are responsible, reliable, and answerable for our performance.\nWe own our work, stand by our results, and do what we promise.",
-    },
-    {
-      letter: "T",
-      title: "Timeliness",
-      description:
-        "We value punctuality and deliver tasks, services, and commitments without delay.",
+      title: "Respect & Integrity",
+      description: "We act honestly, ethically, and professionally in all relationships.",
     },
     {
       letter: "E",
       title: "Excellence",
-      description:
-        "We uphold the highest standards in quality, performance, and continuous improvement.",
+      description: "We pursue excellence through commitment, discipline, and consistency.",
     },
     {
-      letter: "I",
-      title: "Innovation",
-      description:
-        "We encourage creativity, new ideas, and smart solutions that keep us ahead of the competition.",
+      letter: "A",
+      title: "Accountability",
+      description: "We own outcomes, honor commitments, and take responsibility for results.",
     },
     {
       letter: "T",
       title: "Teamwork",
-      description:
-        "We collaborate across all levels, leveraging diverse strengths to achieve common goals.",
+      description: "We collaborate, support one another, and win together.",
+    },
+    {
+      letter: "E",
+      title: "Efficiency & Effectiveness",
+      description: "We focus on results, eliminate waste, and use resources wisely.",
+    },
+    {
+      letter: "I",
+      title: "Innovation",
+      description: "We continuously improve our solutions, systems, and ways of working.",
+    },
+    {
+      letter: "T",
+      title: "Timeliness",
+      description: "We deliver on our promises when we say we will.",
     },
   ],
   salesEthosTitle: `${companyName} SALES ETHOS`,
   salesEthos: [
     {
-      title: "Social Media Marketing",
-      description: "Facebook, WhatsApp Groups & Status.",
+      title: "Marketing - Social Media Posting",
+      description: "Post on social media.",
     },
     {
-      title: "Quotation Follow-Up",
-      description: "Follow up on all pending quotations.",
+      title: "Customer Call List",
+      description: "Make a list of customers to call.",
     },
     {
-      title: "Prospecting",
-      description: "Create a daily prospect list and make calls.",
+      title: "Pending Quotation Follow-Up",
+      description: "Follow up on pending quotations using the Epic Fury strategy.",
     },
     {
-      title: "Lead Follow-Up",
-      description: "Follow up on previous prospects.",
+      title: "Previously Contacted Prospects",
+      description: "Follow up with previously contacted prospects by calls and visits.",
     },
     {
-      title: "Debt Collection",
+      title: "New Leads",
+      description: "Contact new leads.",
+    },
+    {
+      title: "Collection",
       description: "Follow up on outstanding payments.",
     },
     {
-      title: "Action",
-      description: "Convert leads, close sales and update records daily.",
+      title: "ACTION",
+      description: "Act on the priorities above.",
     },
   ],
 } as const;

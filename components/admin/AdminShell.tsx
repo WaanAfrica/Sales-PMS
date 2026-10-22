@@ -227,6 +227,7 @@ export default function AdminShell({
     teamTotals: {
       target: number;
       actual: number;
+      dailyRevenue?: number;
       varianceAmount: number;
       variancePercentage: number | string;
       customers: number;
@@ -398,6 +399,9 @@ export default function AdminShell({
       ],
       ["TEAM PERFORMANCE SUMMARY"],
       ["Total Revenue (MTD)", money(reportSummary.teamTotals.actual)],
+      ...(reportType === "Daily Report"
+        ? [["Total Daily Revenue", money(reportSummary.teamTotals.dailyRevenue ?? 0)]]
+        : []),
       ["Team Target", money(reportSummary.teamTotals.target)],
       ["Variance", money(reportSummary.teamTotals.varianceAmount)],
       [
@@ -536,7 +540,10 @@ export default function AdminShell({
     });
     rows.push(
       ["TEAM TOTAL"],
-      ["Revenue", money(reportSummary.teamTotals.actual)],
+      ["Revenue (MTD)", money(reportSummary.teamTotals.actual)],
+      ...(reportType === "Daily Report"
+        ? [["Daily Revenue", money(reportSummary.teamTotals.dailyRevenue ?? 0)]]
+        : []),
       ["Target", money(reportSummary.teamTotals.target)],
       ["Variance", money(reportSummary.teamTotals.varianceAmount)],
       ["Customers", reportSummary.teamTotals.customers],
@@ -802,6 +809,14 @@ export default function AdminShell({
       ["Pending", String(reportSummary.pending)],
       ["Drafts", String(reportSummary.drafts)],
       ["Total Revenue (MTD)", money(reportSummary.teamTotals.actual)],
+      ...(reportType === "Daily Report"
+        ? ([
+            [
+              "Total Daily Revenue",
+              money(reportSummary.teamTotals.dailyRevenue ?? 0),
+            ],
+          ] as Array<[string, string]>)
+        : []),
       ["Team Target", money(reportSummary.teamTotals.target)],
       ["Variance", money(reportSummary.teamTotals.varianceAmount)],
       [
